@@ -19,7 +19,7 @@ npm install
 npm run dev
 ```
 
-That's it. The app runs at `http://localhost:8443` with everything auto-configured:
+That's it. The app runs at `http://localhost:5000` with everything auto-configured:
 - SQLite database is created automatically on first run
 - Default channels (#general, #gaming, #off-topic, #announcements) are seeded
 - Default roles (@everyone, Moderator, Admin) are seeded
@@ -28,7 +28,7 @@ That's it. The app runs at `http://localhost:8443` with everything auto-configur
 ## Stack
 
 - Next.js 14 (App Router)
-- Custom Node server (Express + HTTP) on port 8443
+- Custom Node server (Express + HTTP) on port 5000
 - SQLite (via better-sqlite3) — zero-config local database
 - JWT auth with bcrypt password hashing
 - Socket.io for real-time chat
@@ -45,10 +45,10 @@ src/
   data/         — Static data (games, emojis, fun facts)
   hooks/        — Custom React hooks
   lib/          — Database, auth, proxy utils, chat client
-server.js       — Custom server (port 8443)
+server.js       — Custom server (port 5000)
 public/         — Static assets, proxy configs, emoji SVGs
 ```
 
 ## Port
 
-Runs on port **8443** by default. Change via `PORT` environment variable.
+Runs on port **5000** by default. Change via `PORT` environment variable.

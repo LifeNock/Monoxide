@@ -6,7 +6,7 @@ const { Server: SocketIOServer } = require('socket.io');
 const path = require('path');
 
 const dev = process.env.NODE_ENV !== 'production';
-const port = parseInt(process.env.PORT || '8443', 10);
+const port = parseInt(process.env.PORT || '5000', 10);
 
 const app = next({ dev });
 const handle = app.getRequestHandler();
