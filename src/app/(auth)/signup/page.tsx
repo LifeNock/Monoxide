@@ -9,11 +9,11 @@ type Step = 1 | 2 | 3 | 4;
 
 export default function SignupPage() {
   const [step, setStep] = useState<Step>(1);
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [usernameChecking, setUsernameChecking] = useState(false);
   const [bio, setBio] = useState('');
@@ -49,12 +49,12 @@ export default function SignupPage() {
     setError('');
     setLoading(true);
 
-    // 1. Sign up
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email, password, username, displayName, bio, pronouns, newsletter,
+        email: email || `${username}@monoxide.local`,
+        password, username, displayName, bio, pronouns, newsletter,
       }),
     });
 
@@ -65,7 +65,6 @@ export default function SignupPage() {
       return;
     }
 
-    // 2. Upload avatar if provided
     if (avatarFile) {
       const formData = new FormData();
       formData.append('file', avatarFile);
@@ -86,8 +85,8 @@ export default function SignupPage() {
 
   const canProceed = () => {
     switch (step) {
-      case 1: return email && password && password === confirmPassword && password.length >= 6;
-      case 2: return displayName && username && username.length >= 3 && usernameAvailable === true;
+      case 1: return displayName && username && username.length >= 3 && usernameAvailable === true;
+      case 2: return password && password === confirmPassword && password.length >= 6;
       case 3: return true;
       case 4: return true;
     }
@@ -96,111 +95,171 @@ export default function SignupPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div style={{ textAlign: 'center' }}>
-        <Image src="/MonoxideLogo.png" alt="Monoxide" width={64} height={64} style={{ margin: '0 auto 1rem' }} />
-        <h1 className="wordmark" style={{ fontSize: '2rem', color: 'var(--accent)' }}>MONOXIDE</h1>
-        <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Create your account — Step {step} of 4</p>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+          <Image src="/MonoxideLogo.png" alt="Monoxide" width={48} height={48} />
+        </div>
+        <h1 className="wordmark" style={{
+          fontSize: '1.8rem',
+          background: 'linear-gradient(135deg, #FFFFFF 0%, #666 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+        }}>
+          MONOXIDE
+        </h1>
+        <p style={{ color: 'var(--text-muted)', marginTop: '0.4rem', fontSize: '0.85rem' }}>
+          Step {step} of 4
+        </p>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
+      {/* Progress bar */}
+      <div style={{ display: 'flex', gap: '6px' }}>
         {[1, 2, 3, 4].map((s) => (
           <div key={s} style={{
-            width: 32, height: 4, borderRadius: 2,
-            background: s <= step ? 'var(--accent)' : 'var(--bg-tertiary)',
-            transition: 'background 0.3s',
+            flex: 1, height: 3, borderRadius: 2,
+            background: s <= step ? 'var(--accent)' : 'var(--border)',
+            transition: 'background 0.4s ease, box-shadow 0.4s',
+            boxShadow: s <= step ? '0 0 8px var(--accent-muted)' : 'none',
           }} />
         ))}
       </div>
 
+      {/* Step 1: Identity */}
       {step === 1 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <input type="password" placeholder="Password (min 6 characters)" value={password} onChange={(e) => setPassword(e.target.value)} required />
-          <input type="password" placeholder="Confirm password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
-          {password && confirmPassword && password !== confirmPassword && (
-            <p style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>Passwords don&apos;t match</p>
-          )}
-        </div>
-      )}
-
-      {step === 2 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <input type="text" placeholder="Display Name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required />
+        <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div>
-            <input type="text" placeholder="Username (min 3 characters)" value={username}
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Display Name</label>
+            <input type="text" placeholder="What should we call you?" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Username</label>
+            <input type="text" placeholder="your-unique-name" value={username}
               onChange={(e) => {
                 const val = e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '');
                 setUsername(val);
                 checkUsername(val);
               }}
-              style={{ width: '100%' }} required
             />
-            {usernameChecking && <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 4 }}>Checking...</p>}
-            {!usernameChecking && usernameAvailable === true && username.length >= 3 && (
-              <p style={{ color: 'var(--success)', fontSize: '0.8rem', marginTop: 4 }}>Username available!</p>
-            )}
-            {!usernameChecking && usernameAvailable === false && (
-              <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: 4 }}>Username taken</p>
-            )}
+            <div style={{ minHeight: 20, marginTop: 4, fontSize: '0.75rem' }}>
+              {usernameChecking && <span style={{ color: 'var(--text-muted)' }}>Checking...</span>}
+              {!usernameChecking && usernameAvailable === true && username.length >= 3 && (
+                <span style={{ color: 'var(--success)' }}>Available</span>
+              )}
+              {!usernameChecking && usernameAvailable === false && (
+                <span style={{ color: 'var(--danger)' }}>Taken</span>
+              )}
+            </div>
           </div>
         </div>
       )}
 
+      {/* Step 2: Password + optional email */}
+      {step === 2 && (
+        <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Password</label>
+            <input type="password" placeholder="Min 6 characters" value={password} onChange={(e) => setPassword(e.target.value)} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Confirm Password</label>
+            <input type="password" placeholder="Type it again" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+            {password && confirmPassword && password !== confirmPassword && (
+              <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: 4, animation: 'fadeIn 0.2s' }}>Doesn&apos;t match</p>
+            )}
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>
+              Email <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span>
+            </label>
+            <input type="email" placeholder="For account recovery" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Avatar + Pronouns + Bio */}
       {step === 3 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--bg-tertiary)', overflow: 'hidden', flexShrink: 0 }}>
-              {avatarPreview && <img src={avatarPreview} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+            <div style={{
+              width: 64, height: 64, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+              background: 'var(--bg-tertiary)', border: '2px solid var(--border)',
+              transition: 'border-color 0.2s',
+            }}>
+              {avatarPreview ? (
+                <img src={avatarPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '1.5rem', fontWeight: 700 }}>
+                  {displayName?.[0]?.toUpperCase() || '?'}
+                </div>
+              )}
             </div>
             <div>
-              <label className="btn-secondary" style={{ display: 'inline-block', cursor: 'pointer', fontSize: '0.85rem', padding: '8px 16px' }}>
+              <label className="btn-secondary" style={{ cursor: 'pointer', fontSize: '0.8rem', padding: '8px 16px', display: 'inline-block' }}>
                 Upload Avatar
                 <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: 'none' }} />
               </label>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: 4 }}>Optional</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginTop: 4 }}>Optional</p>
             </div>
           </div>
-          <select value={pronouns} onChange={(e) => setPronouns(e.target.value)}>
-            <option value="">Pronouns (optional)</option>
-            <option value="he/him">he/him</option>
-            <option value="she/her">she/her</option>
-            <option value="they/them">they/them</option>
-            <option value="he/they">he/they</option>
-            <option value="she/they">she/they</option>
-            <option value="any">any pronouns</option>
-          </select>
-          <textarea placeholder="Bio (optional)" value={bio} onChange={(e) => setBio(e.target.value)} maxLength={200} rows={3} style={{ resize: 'vertical' }} />
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Pronouns</label>
+            <select value={pronouns} onChange={(e) => setPronouns(e.target.value)}>
+              <option value="">Prefer not to say</option>
+              <option value="he/him">he/him</option>
+              <option value="she/her">she/her</option>
+              <option value="they/them">they/them</option>
+              <option value="he/they">he/they</option>
+              <option value="she/they">she/they</option>
+              <option value="any">any pronouns</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>Bio</label>
+            <textarea placeholder="Tell us about yourself..." value={bio} onChange={(e) => setBio(e.target.value)} maxLength={200} rows={3} style={{ resize: 'vertical' }} />
+            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4, textAlign: 'right' }}>{bio.length}/200</p>
+          </div>
         </div>
       )}
 
+      {/* Step 4: Newsletter */}
       {step === 4 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '1rem', background: 'var(--bg-tertiary)', borderRadius: 8 }}>
+        <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer',
+            padding: '1rem', background: 'var(--bg-tertiary)', borderRadius: 12,
+            border: '1px solid var(--border)', transition: 'border-color 0.2s',
+          }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--text-muted)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+          >
             <input type="checkbox" checked={newsletter} onChange={(e) => setNewsletter(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--accent)' }} />
             <div>
-              <p style={{ fontWeight: 500 }}>Subscribe to newsletter</p>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Get updates about new features and games</p>
+              <p style={{ fontWeight: 500, fontSize: '0.9rem' }}>Get updates</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>New features and games</p>
             </div>
           </label>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', textAlign: 'center' }}>
+            You&apos;re all set. Ready to go?
+          </p>
         </div>
       )}
 
-      {error && <p style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{error}</p>}
+      {error && <p style={{ color: 'var(--danger)', fontSize: '0.8rem', animation: 'fadeIn 0.2s' }}>{error}</p>}
 
-      <div style={{ display: 'flex', gap: '1rem' }}>
+      <div style={{ display: 'flex', gap: '0.75rem' }}>
         {step > 1 && (
           <button className="btn-secondary" onClick={() => setStep((s) => (s - 1) as Step)} style={{ flex: 1 }}>Back</button>
         )}
         {step < 4 ? (
-          <button className="btn-primary" onClick={() => setStep((s) => (s + 1) as Step)} disabled={!canProceed()} style={{ flex: 1 }}>Next</button>
+          <button className="btn-primary" onClick={() => setStep((s) => (s + 1) as Step)} disabled={!canProceed()} style={{ flex: 1 }}>Continue</button>
         ) : (
           <button className="btn-primary" onClick={handleSubmit} disabled={loading} style={{ flex: 1 }}>
-            {loading ? 'Creating account...' : 'Create Account'}
+            {loading ? 'Creating...' : 'Create Account'}
           </button>
         )}
       </div>
 
-      <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-        Already have an account?{' '}<Link href="/login">Log in</Link>
+      <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+        Already have an account?{' '}<Link href="/login" style={{ fontWeight: 600 }}>Sign in</Link>
       </p>
     </div>
   );

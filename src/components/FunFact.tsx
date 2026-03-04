@@ -14,12 +14,13 @@ export default function FunFact() {
 
   return (
     <p style={{
-      color: 'var(--text-secondary)',
-      fontSize: '0.8rem',
-      fontStyle: 'italic',
+      color: 'var(--text-muted)',
+      fontSize: '0.75rem',
       textAlign: 'center',
-      maxWidth: 400,
+      maxWidth: 380,
       margin: '0 auto',
+      lineHeight: 1.5,
+      letterSpacing: '0.01em',
     }}>
       {fact}
     </p>

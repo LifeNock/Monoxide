@@ -26,7 +26,6 @@ function LoginForm() {
     });
 
     const data = await res.json();
-
     if (!res.ok) {
       setError(data.error || 'Login failed');
       setLoading(false);
@@ -40,23 +39,32 @@ function LoginForm() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div style={{ textAlign: 'center' }}>
-        <Image src="/MonoxideLogo.png" alt="Monoxide" width={64} height={64} style={{ margin: '0 auto 1rem' }} />
-        <h1 className="wordmark" style={{ fontSize: '2rem', color: 'var(--accent)' }}>MONOXIDE</h1>
-        <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Welcome back</p>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+          <Image src="/MonoxideLogo.png" alt="Monoxide" width={48} height={48} />
+        </div>
+        <h1 className="wordmark" style={{
+          fontSize: '1.8rem',
+          background: 'linear-gradient(135deg, #FFFFFF 0%, #666 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+        }}>
+          MONOXIDE
+        </h1>
+        <p style={{ color: 'var(--text-muted)', marginTop: '0.4rem', fontSize: '0.85rem' }}>Welcome back</p>
       </div>
 
-      <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+      <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <input type="text" placeholder="Email or Username" value={email} onChange={(e) => setEmail(e.target.value)} required />
         <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        {error && <p style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{error}</p>}
-        <button type="submit" className="btn-primary" disabled={loading}>
-          {loading ? 'Logging in...' : 'Log In'}
+        {error && <p style={{ color: 'var(--danger)', fontSize: '0.8rem', animation: 'fadeIn 0.2s ease-out' }}>{error}</p>}
+        <button type="submit" className="btn-primary" disabled={loading} style={{ marginTop: '0.25rem' }}>
+          {loading ? 'Signing in...' : 'Sign In'}
         </button>
       </form>
 
-      <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+      <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
         Don&apos;t have an account?{' '}
-        <Link href="/signup">Sign up</Link>
+        <Link href="/signup" style={{ fontWeight: 600 }}>Sign up</Link>
       </p>
     </div>
   );

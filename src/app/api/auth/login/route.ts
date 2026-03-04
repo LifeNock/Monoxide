@@ -12,7 +12,8 @@ export async function POST(request: NextRequest) {
     }
 
     const db = getDb();
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
+    // Accept email or username
+    const user = db.prepare('SELECT * FROM users WHERE email = ? OR username = ?').get(email, email) as any;
 
     if (!user) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
