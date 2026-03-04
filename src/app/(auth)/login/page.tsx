@@ -4,7 +4,6 @@ import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { createClient } from '@/lib/supabase/client';
 
 function LoginForm() {
   const [email, setEmail] = useState('');
@@ -20,14 +19,16 @@ function LoginForm() {
     setError('');
     setLoading(true);
 
-    const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
     });
 
-    if (authError) {
-      setError(authError.message);
+    const data = await res.json();
+
+    if (!res.ok) {
+      setError(data.error || 'Login failed');
       setLoading(false);
       return;
     }
@@ -45,23 +46,9 @@ function LoginForm() {
       </div>
 
       <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        {error && (
-          <p style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{error}</p>
-        )}
+        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        {error && <p style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{error}</p>}
         <button type="submit" className="btn-primary" disabled={loading}>
           {loading ? 'Logging in...' : 'Log In'}
         </button>

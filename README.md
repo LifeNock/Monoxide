@@ -10,48 +10,30 @@ An all-in-one unblocked platform with a web proxy, games library, and real-time 
 - **User profiles** — Avatars, bios, pronouns, badges, and banner customization
 - **5 themes** — Carbon (dark), Light, Midnight, Forest, Crimson
 - **Privacy tools** — Panic key, about:blank cloaking, customizable redirect URL
+- **Zero config** — SQLite database, no external services needed
 
 ## Setup
 
-1. Clone the repo and install dependencies:
-
 ```bash
 npm install
-```
-
-2. Set up Supabase:
-   - Create a project at [supabase.com](https://supabase.com)
-   - Run `supabase/schema.sql` in the SQL editor
-   - Copy your API keys into `.env.local`:
-
-```
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-```
-
-3. Generate favicons (optional):
-
-```bash
-npm run generate-favicon
-```
-
-4. Start the server:
-
-```bash
 npm run dev
 ```
 
-The app runs at `http://localhost:8443`.
+That's it. The app runs at `http://localhost:8443` with everything auto-configured:
+- SQLite database is created automatically on first run
+- Default channels (#general, #gaming, #off-topic, #announcements) are seeded
+- Default roles (@everyone, Moderator, Admin) are seeded
+- User auth uses JWT tokens stored in cookies
 
 ## Stack
 
 - Next.js 14 (App Router)
-- Custom Node server (Express + HTTP)
-- Supabase (auth, database, storage, realtime)
-- Socket.io (chat fallback)
-- Ultraviolet + Scramjet (proxy engines)
-- Wisp + Epoxy (transport layer)
+- Custom Node server (Express + HTTP) on port 8443
+- SQLite (via better-sqlite3) — zero-config local database
+- JWT auth with bcrypt password hashing
+- Socket.io for real-time chat
+- Ultraviolet + Scramjet proxy engines
+- Wisp + Epoxy transport layer
 
 ## Project Structure
 
@@ -62,9 +44,8 @@ src/
   contexts/     — Theme and font providers
   data/         — Static data (games, emojis, fun facts)
   hooks/        — Custom React hooks
-  lib/          — Supabase clients, proxy utils, chat client
+  lib/          — Database, auth, proxy utils, chat client
 server.js       — Custom server (port 8443)
-supabase/       — Database schema and seeds
 public/         — Static assets, proxy configs, emoji SVGs
 ```
 

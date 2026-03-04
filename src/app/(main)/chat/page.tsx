@@ -1,10 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { getChatClient, type Message } from '@/lib/chat/client';
-import { createClient } from '@/lib/supabase/client';
-import { containsFilteredWord, loadFilterWords } from '@/lib/chat/wordFilter';
 import ChannelSidebar from '@/components/chat/ChannelSidebar';
 import MessageItem from '@/components/chat/MessageItem';
 import MessageInput from '@/components/chat/MessageInput';
@@ -14,7 +11,7 @@ interface Channel {
   id: string;
   name: string;
   description: string;
-  is_locked: boolean;
+  is_locked: number;
 }
 
 export default function ChatPage() {
@@ -24,44 +21,30 @@ export default function ChatPage() {
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [filterWords, setFilterWords] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
   const chatClient = getChatClient();
 
   useEffect(() => {
     const init = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login?redirect=/chat');
-        return;
-      }
-      setCurrentUserId(user.id);
+      // Get current user
+      const meRes = await fetch('/api/auth/me');
+      const meData = await meRes.json();
+      if (meData.user) setCurrentUserId(meData.user.id);
 
-      await chatClient.init();
+      chatClient.init();
       const chs = await chatClient.getChannels();
       setChannels(chs);
-      if (chs.length > 0) {
-        selectChannel(chs[0]);
-      }
-
-      const words = await loadFilterWords();
-      setFilterWords(words);
+      if (chs.length > 0) selectChannel(chs[0]);
     };
     init();
 
     return () => {
-      if (activeChannel) {
-        chatClient.unsubscribeFromChannel(activeChannel.id);
-      }
+      if (activeChannel) chatClient.unsubscribeFromChannel(activeChannel.id);
     };
   }, []);
 
   const selectChannel = async (channel: Channel) => {
-    if (activeChannel) {
-      chatClient.unsubscribeFromChannel(activeChannel.id);
-    }
+    if (activeChannel) chatClient.unsubscribeFromChannel(activeChannel.id);
 
     setActiveChannel(channel);
     setMessages([]);
@@ -71,28 +54,30 @@ export default function ChatPage() {
     setMessages(msgs);
 
     chatClient.subscribeToChannel(channel.id, (msg) => {
-      setMessages((prev) => [...prev, msg]);
+      setMessages((prev) => {
+        // Avoid duplicates
+        if (prev.find((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
     });
 
     chatClient.onTyping(channel.id, setTypingUsers);
-
-    // Scroll to bottom
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   };
 
   const sendMessage = async (content: string, replyTo?: string) => {
     if (!activeChannel) return;
-
-    if (containsFilteredWord(content, filterWords)) {
-      alert('Your message contains a word that is not allowed.');
-      return;
-    }
-
     try {
-      await chatClient.sendMessage(activeChannel.id, content, replyTo);
+      const msg = await chatClient.sendMessage(activeChannel.id, content, replyTo);
+      if (msg) {
+        setMessages((prev) => {
+          if (prev.find((m) => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
+      }
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     } catch (err: any) {
-      console.error('Failed to send message:', err);
+      alert(err.message || 'Failed to send message');
     }
   };
 
@@ -102,13 +87,9 @@ export default function ChatPage() {
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      height: 'calc(100vh - 56px)',
-      margin: '-1.5rem',
-    }}>
+    <div style={{ display: 'flex', height: 'calc(100vh - 56px)', margin: '-1.5rem' }}>
       <ChannelSidebar
-        channels={channels}
+        channels={channels.map((c) => ({ ...c, is_locked: !!c.is_locked }))}
         activeId={activeChannel?.id || null}
         onSelect={(id) => {
           const ch = channels.find((c) => c.id === id);
@@ -117,7 +98,6 @@ export default function ChatPage() {
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* Channel header */}
         {activeChannel && (
           <div style={{
             padding: '0.75rem 1rem',
@@ -128,31 +108,17 @@ export default function ChatPage() {
           }}>
             <span style={{ fontWeight: 600 }}>#{activeChannel.name}</span>
             {activeChannel.description && (
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                — {activeChannel.description}
-              </span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>— {activeChannel.description}</span>
             )}
           </div>
         )}
 
-        {/* Messages */}
-        <div style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '0.5rem 0',
-        }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem 0' }}>
           {messages.length === 0 && activeChannel && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-              color: 'var(--text-muted)',
-            }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
               No messages yet. Say something!
             </div>
           )}
-
           {messages.map((msg) => (
             <MessageItem
               key={msg.id}
@@ -160,10 +126,7 @@ export default function ChatPage() {
               currentUserId={currentUserId}
               onReply={setReplyingTo}
               onDelete={deleteMessage}
-              onReact={(messageId) => {
-                // Quick react with thumbs up
-                chatClient.addReaction(messageId, 'thumbs_up');
-              }}
+              onReact={() => {}}
             />
           ))}
           <div ref={messagesEndRef} />
@@ -176,7 +139,7 @@ export default function ChatPage() {
             onSend={sendMessage}
             replyingTo={replyingTo}
             onCancelReply={() => setReplyingTo(null)}
-            disabled={activeChannel.is_locked}
+            disabled={!!activeChannel.is_locked}
             channelName={activeChannel.name}
           />
         )}

@@ -23,7 +23,6 @@ export default function MessageItem({
   reactions = [],
 }: MessageItemProps) {
   const [hovering, setHovering] = useState(false);
-  const profile = message.profiles;
   const isOwn = currentUserId === message.user_id;
 
   const time = new Date(message.created_at).toLocaleTimeString([], {
@@ -54,9 +53,9 @@ export default function MessageItem({
         flexShrink: 0,
         overflow: 'hidden',
       }}>
-        {profile?.avatar_url && (
+        {message.avatar_url && (
           <img
-            src={profile.avatar_url}
+            src={message.avatar_url}
             alt=""
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
@@ -67,7 +66,7 @@ export default function MessageItem({
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
           <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-            {profile?.display_name || 'Unknown'}
+            {message.display_name || 'Unknown'}
           </span>
           <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>{time}</span>
         </div>

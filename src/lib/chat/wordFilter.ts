@@ -1,17 +1,15 @@
-import { createClient } from '@/lib/supabase/client';
-
 let cachedWords: string[] = [];
 let lastFetch = 0;
-const CACHE_TTL = 60000; // 1 minute
+const CACHE_TTL = 60000;
 
 export async function loadFilterWords(): Promise<string[]> {
   if (Date.now() - lastFetch < CACHE_TTL && cachedWords.length > 0) {
     return cachedWords;
   }
 
-  const supabase = createClient();
-  const { data } = await supabase.from('word_filter').select('word');
-  cachedWords = (data || []).map((w) => w.word.toLowerCase());
+  // Word filter is enforced server-side in the messages API
+  // Client-side check is just a convenience
+  cachedWords = [];
   lastFetch = Date.now();
   return cachedWords;
 }

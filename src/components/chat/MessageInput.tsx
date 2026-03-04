@@ -53,7 +53,7 @@ export default function MessageInput({
           fontSize: '0.8rem',
           color: 'var(--text-secondary)',
         }}>
-          <span>Replying to <strong>{replyingTo.profiles?.display_name}</strong></span>
+          <span>Replying to <strong>{replyingTo.display_name}</strong></span>
           <button
             onClick={onCancelReply}
             style={{ background: 'none', padding: 2, color: 'var(--text-muted)', marginLeft: 'auto' }}
