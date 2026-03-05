@@ -49,15 +49,23 @@ export default function AppearancePage() {
 
       <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Font</h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        {fonts.map((f) => (
-          <button key={f.id} onClick={() => { setFont(f.id); saveToDb(theme, f.id); }} className="card" style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
-            borderColor: font === f.id ? 'var(--accent)' : 'var(--border)', textAlign: 'left',
-          }}>
-            <span style={{ fontSize: '0.95rem' }}>{f.name}</span>
-            {font === f.id && <span style={{ color: 'var(--accent)', fontSize: '0.8rem', fontWeight: 600 }}>Active</span>}
-          </button>
-        ))}
+        {fonts.map((f) => {
+          const fontVar: Record<string, string> = {
+            barlow: 'var(--font-barlow)',
+            rajdhani: 'var(--font-rajdhani)',
+            'space-grotesk': 'var(--font-space-grotesk)',
+            'ibm-plex-sans': 'var(--font-ibm-plex-sans)',
+          };
+          return (
+            <button key={f.id} onClick={() => { setFont(f.id); saveToDb(theme, f.id); }} className="card" style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
+              borderColor: font === f.id ? 'var(--accent)' : 'var(--border)', textAlign: 'left',
+            }}>
+              <span style={{ fontSize: '0.95rem', fontFamily: `${fontVar[f.id]}, sans-serif` }}>{f.name}</span>
+              {font === f.id && <span style={{ color: 'var(--accent)', fontSize: '0.8rem', fontWeight: 600 }}>Active</span>}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

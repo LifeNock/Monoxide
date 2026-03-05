@@ -22,7 +22,7 @@ export function encodeUrl(url: string, engine: ProxyEngine): string {
   if (engine === 'ultraviolet') {
     return '/uv/service/' + xorEncode(url);
   } else {
-    // Scramjet uses its own codec
+    // Scramjet uses plain codec — just encodeURI to handle special chars
     return '/scram/service/' + encodeURIComponent(url);
   }
 }

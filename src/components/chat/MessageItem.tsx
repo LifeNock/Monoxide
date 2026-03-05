@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { Trash2, Reply, SmilePlus } from 'lucide-react';
 import type { Message } from '@/lib/chat/client';
-import { getEmojiById } from '@/data/emojis';
 
 interface MessageItemProps {
   message: Message;
@@ -70,41 +69,58 @@ export default function MessageItem({
           </span>
           <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>{time}</span>
         </div>
-        <p style={{
-          fontSize: '0.9rem',
-          color: 'var(--text-primary)',
-          wordBreak: 'break-word',
-          lineHeight: 1.5,
-          marginTop: 2,
-        }}>
-          {message.content}
-        </p>
+        {message.content && (
+          <p style={{
+            fontSize: '0.9rem',
+            color: 'var(--text-primary)',
+            wordBreak: 'break-word',
+            lineHeight: 1.5,
+            marginTop: 2,
+          }}>
+            {message.content}
+          </p>
+        )}
+
+        {/* Image attachment */}
+        {message.image_url && (
+          <div style={{ marginTop: 4 }}>
+            <img
+              src={message.image_url}
+              alt="Attachment"
+              style={{
+                maxWidth: 400,
+                maxHeight: 300,
+                borderRadius: 8,
+                cursor: 'pointer',
+                border: '1px solid var(--border)',
+              }}
+              onClick={() => window.open(message.image_url!, '_blank')}
+            />
+          </div>
+        )}
 
         {/* Reactions */}
         {reactions.length > 0 && (
           <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
-            {reactions.map((r) => {
-              const emoji = getEmojiById(r.emoji_id);
-              return (
-                <button
-                  key={r.emoji_id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                    padding: '2px 6px',
-                    borderRadius: 4,
-                    fontSize: '0.75rem',
-                    background: r.user_reacted ? 'var(--accent-muted)' : 'var(--bg-tertiary)',
-                    border: r.user_reacted ? '1px solid var(--accent)' : '1px solid transparent',
-                    color: 'var(--text-secondary)',
-                  }}
-                >
-                  {emoji && <img src={emoji.src} alt={emoji.name} width={14} height={14} />}
-                  {r.count}
-                </button>
-              );
-            })}
+            {reactions.map((r) => (
+              <button
+                key={r.emoji_id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  padding: '2px 6px',
+                  borderRadius: 4,
+                  fontSize: '0.75rem',
+                  background: r.user_reacted ? 'var(--accent-muted)' : 'var(--bg-tertiary)',
+                  border: r.user_reacted ? '1px solid var(--accent)' : '1px solid transparent',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                <span>{r.emoji_id}</span>
+                {r.count}
+              </button>
+            ))}
           </div>
         )}
       </div>

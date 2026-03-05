@@ -84,6 +84,7 @@ function initSchema(db: Database.Database) {
       channel_id TEXT REFERENCES channels(id) ON DELETE CASCADE NOT NULL,
       user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
       content TEXT NOT NULL,
+      image_url TEXT,
       reply_to TEXT REFERENCES messages(id) ON DELETE SET NULL,
       is_deleted INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
@@ -117,6 +118,13 @@ function initSchema(db: Database.Database) {
       user_id TEXT REFERENCES users(id) ON DELETE SET NULL
     );
   `);
+
+  // Migration: add image_url to messages if not present
+  try {
+    db.exec(`ALTER TABLE messages ADD COLUMN image_url TEXT`);
+  } catch {
+    // Column already exists
+  }
 
   // Seed default roles
   const roleCount = db.prepare('SELECT COUNT(*) as c FROM roles').get() as any;

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Globe, Gamepad2, MessageCircle, Settings, User, LogOut } from 'lucide-react';
+import { useTheme, type Theme } from '@/contexts/ThemeContext';
 
 const navItems = [
   { href: '/proxy', label: 'Proxy', icon: Globe },
@@ -12,9 +13,18 @@ const navItems = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
+const themeGradients: Record<Theme, string> = {
+  carbon: 'linear-gradient(135deg, #FFFFFF 0%, #666666 100%)',
+  light: 'linear-gradient(135deg, #1A1A1A 0%, #666666 100%)',
+  midnight: 'linear-gradient(135deg, #8BA4FF 0%, #C084FC 100%)',
+  forest: 'linear-gradient(135deg, #66DD88 0%, #22BBAA 100%)',
+  crimson: 'linear-gradient(135deg, #FF6666 0%, #FF8833 100%)',
+};
+
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { theme } = useTheme();
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -46,7 +56,7 @@ export default function Sidebar() {
         <Image src="/MonoxideLogo.png" alt="" width={28} height={28} />
         <span className="wordmark" style={{
           fontSize: '1.15rem',
-          background: 'linear-gradient(135deg, #FFF 0%, #666 100%)',
+          background: themeGradients[theme],
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
         }}>

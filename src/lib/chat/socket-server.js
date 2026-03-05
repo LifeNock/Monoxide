@@ -1,10 +1,7 @@
-// Socket.io chat handlers — fallback when Supabase Realtime is unavailable
 module.exports = function setupSocketHandlers(io) {
   const typingUsers = new Map(); // channelId -> Set of usernames
 
   io.on('connection', (socket) => {
-    console.log('Socket connected:', socket.id);
-
     socket.on('join-channel', (channelId) => {
       socket.join(`channel:${channelId}`);
     });
@@ -13,17 +10,11 @@ module.exports = function setupSocketHandlers(io) {
       socket.leave(`channel:${channelId}`);
     });
 
-    socket.on('send-message', (data) => {
-      // Broadcast to channel
-      io.to(`channel:${data.channelId}`).emit('new-message', {
-        id: data.id,
-        channel_id: data.channelId,
-        user_id: data.userId,
-        content: data.content,
-        reply_to: data.replyTo || null,
-        created_at: new Date().toISOString(),
-        profiles: data.profile,
-      });
+    socket.on('send-message', (msg) => {
+      // Broadcast the full message object to everyone in the channel (including sender)
+      if (msg && msg.channel_id) {
+        io.to(`channel:${msg.channel_id}`).emit('new-message', msg);
+      }
     });
 
     socket.on('typing-start', ({ channelId, username }) => {
@@ -54,8 +45,7 @@ module.exports = function setupSocketHandlers(io) {
     });
 
     socket.on('disconnect', () => {
-      // Clean up typing indicators
-      for (const [channelId, users] of typingUsers) {
+      for (const [, users] of typingUsers) {
         users.delete(socket.data?.username);
       }
     });

@@ -4,11 +4,12 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 
 export type FontOption = 'barlow' | 'rajdhani' | 'space-grotesk' | 'ibm-plex-sans';
 
+// Use the CSS variables that Next.js font loader creates
 const fontFamilyMap: Record<FontOption, string> = {
-  barlow: "'Barlow', sans-serif",
-  rajdhani: "'Rajdhani', sans-serif",
-  'space-grotesk': "'Space Grotesk', sans-serif",
-  'ibm-plex-sans': "'IBM Plex Sans', sans-serif",
+  barlow: 'var(--font-barlow), sans-serif',
+  rajdhani: 'var(--font-rajdhani), sans-serif',
+  'space-grotesk': 'var(--font-space-grotesk), sans-serif',
+  'ibm-plex-sans': 'var(--font-ibm-plex-sans), sans-serif',
 };
 
 interface FontContextType {
@@ -26,7 +27,7 @@ export function FontProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const saved = localStorage.getItem('monoxide-font') as FontOption | null;
-    if (saved) setFontState(saved);
+    if (saved && fontFamilyMap[saved]) setFontState(saved);
   }, []);
 
   const setFont = (f: FontOption) => {

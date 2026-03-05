@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { getChatClient, type Message } from '@/lib/chat/client';
 import ChannelSidebar from '@/components/chat/ChannelSidebar';
 import MessageItem from '@/components/chat/MessageItem';
@@ -22,11 +22,18 @@ export default function ChatPage() {
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const activeChannelRef = useRef<string | null>(null);
   const chatClient = getChatClient();
+
+  const scrollToBottom = useCallback(() => {
+    requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    });
+  }, []);
 
   useEffect(() => {
     const init = async () => {
-      // Get current user
       const meRes = await fetch('/api/auth/me');
       const meData = await meRes.json();
       if (meData.user) setCurrentUserId(meData.user.id);
@@ -39,43 +46,46 @@ export default function ChatPage() {
     init();
 
     return () => {
-      if (activeChannel) chatClient.unsubscribeFromChannel(activeChannel.id);
+      if (activeChannelRef.current) chatClient.unsubscribeFromChannel(activeChannelRef.current);
     };
   }, []);
 
   const selectChannel = async (channel: Channel) => {
-    if (activeChannel) chatClient.unsubscribeFromChannel(activeChannel.id);
+    if (activeChannelRef.current) chatClient.unsubscribeFromChannel(activeChannelRef.current);
 
     setActiveChannel(channel);
+    activeChannelRef.current = channel.id;
     setMessages([]);
     setReplyingTo(null);
+    setTypingUsers([]);
 
     const msgs = await chatClient.getMessages(channel.id);
     setMessages(msgs);
 
     chatClient.subscribeToChannel(channel.id, (msg) => {
       setMessages((prev) => {
-        // Avoid duplicates
         if (prev.find((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
       });
+      scrollToBottom();
     });
 
     chatClient.onTyping(channel.id, setTypingUsers);
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    setTimeout(scrollToBottom, 100);
   };
 
-  const sendMessage = async (content: string, replyTo?: string) => {
+  const sendMessage = async (content: string, replyTo?: string, imageUrl?: string) => {
     if (!activeChannel) return;
     try {
-      const msg = await chatClient.sendMessage(activeChannel.id, content, replyTo);
+      const msg = await chatClient.sendMessage(activeChannel.id, content, replyTo, imageUrl);
       if (msg) {
+        // Add locally immediately for responsiveness
         setMessages((prev) => {
           if (prev.find((m) => m.id === msg.id)) return prev;
           return [...prev, msg];
         });
+        scrollToBottom();
       }
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     } catch (err: any) {
       alert(err.message || 'Failed to send message');
     }
@@ -113,7 +123,7 @@ export default function ChatPage() {
           </div>
         )}
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem 0' }}>
+        <div ref={messagesContainerRef} style={{ flex: 1, overflowY: 'auto', padding: '0.5rem 0' }}>
           {messages.length === 0 && activeChannel && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
               No messages yet. Say something!

@@ -30,8 +30,8 @@ export default function ParticleBackground() {
     resize();
     window.addEventListener('resize', resize);
 
-    // Create particles
-    const count = Math.min(80, Math.floor((window.innerWidth * window.innerHeight) / 15000));
+    // Fewer particles for better performance
+    const count = Math.min(40, Math.floor((window.innerWidth * window.innerHeight) / 30000));
     particlesRef.current = Array.from({ length: count }, () => ({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
@@ -47,38 +47,37 @@ export default function ParticleBackground() {
     const handleMouseLeave = () => {
       mouseRef.current = { x: -1000, y: -1000 };
     };
-    window.addEventListener('mousemove', handleMouse);
+    window.addEventListener('mousemove', handleMouse, { passive: true });
     window.addEventListener('mouseleave', handleMouseLeave);
 
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const particles = particlesRef.current;
       const mouse = mouseRef.current;
-      const connectionDist = 120;
-      const mouseDist = 180;
+      const connectionDist = 100;
+      const mouseDist = 150;
 
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
 
-        // Mouse interaction — gentle attraction
+        // Mouse interaction
         const dxm = mouse.x - p.x;
         const dym = mouse.y - p.y;
-        const distM = Math.sqrt(dxm * dxm + dym * dym);
-        if (distM < mouseDist && distM > 0) {
+        const distMSq = dxm * dxm + dym * dym;
+        const mouseDistSq = mouseDist * mouseDist;
+
+        if (distMSq < mouseDistSq && distMSq > 0) {
+          const distM = Math.sqrt(distMSq);
           const force = (mouseDist - distM) / mouseDist * 0.008;
           p.vx += dxm / distM * force;
           p.vy += dym / distM * force;
         }
 
-        // Dampen velocity
         p.vx *= 0.99;
         p.vy *= 0.99;
-
-        // Move
         p.x += p.vx;
         p.y += p.vy;
 
-        // Wrap edges
         if (p.x < 0) p.x = canvas.width;
         if (p.x > canvas.width) p.x = 0;
         if (p.y < 0) p.y = canvas.height;
@@ -90,15 +89,17 @@ export default function ParticleBackground() {
         ctx.fillStyle = `rgba(255, 255, 255, ${p.opacity})`;
         ctx.fill();
 
-        // Draw connections
+        // Draw connections (only check nearby particles)
         for (let j = i + 1; j < particles.length; j++) {
           const p2 = particles[j];
           const dx = p.x - p2.x;
           const dy = p.y - p2.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+          const distSq = dx * dx + dy * dy;
+          const connDistSq = connectionDist * connectionDist;
 
-          if (dist < connectionDist) {
-            const opacity = (1 - dist / connectionDist) * 0.12;
+          if (distSq < connDistSq) {
+            const dist = Math.sqrt(distSq);
+            const opacity = (1 - dist / connectionDist) * 0.1;
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p2.x, p2.y);
@@ -109,8 +110,9 @@ export default function ParticleBackground() {
         }
 
         // Mouse connections
-        if (distM < mouseDist) {
-          const opacity = (1 - distM / mouseDist) * 0.2;
+        if (distMSq < mouseDistSq) {
+          const distM = Math.sqrt(distMSq);
+          const opacity = (1 - distM / mouseDist) * 0.15;
           ctx.beginPath();
           ctx.moveTo(p.x, p.y);
           ctx.lineTo(mouse.x, mouse.y);

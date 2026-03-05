@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect, FormEvent } from 'react';
-import { Globe, ArrowRight, Search } from 'lucide-react';
-import ProxyFrame from '@/components/ProxyFrame';
-import { encodeUrl } from '@/lib/proxy/encode';
-import type { ProxyEngine } from '@/lib/proxy/register';
+import { Globe, ArrowRight, Search, X, ArrowLeft, RefreshCw, Loader2 } from 'lucide-react';
+
+type ProxyEngine = 'ultraviolet' | 'scramjet';
 
 export default function ProxyPage() {
   const [url, setUrl] = useState('');
@@ -12,75 +11,195 @@ export default function ProxyPage() {
   const [proxyUrl, setProxyUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [swReady, setSwReady] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('monoxide-proxy-engine') as ProxyEngine | null;
     if (saved) setEngine(saved);
+    registerSW();
   }, []);
+
+  async function registerSW() {
+    if (!('serviceWorker' in navigator)) {
+      setError('Service workers not supported');
+      return;
+    }
+
+    try {
+      const reg = await navigator.serviceWorker.register('/sw-uv.js', {
+        scope: '/uv/service/',
+      });
+
+      // Wait for the SW to become active
+      const sw = reg.active || reg.waiting || reg.installing;
+      if (sw) {
+        if (sw.state === 'activated') {
+          setSwReady(true);
+        } else {
+          await new Promise<void>((resolve) => {
+            sw.addEventListener('statechange', function check() {
+              if (sw.state === 'activated') {
+                sw.removeEventListener('statechange', check);
+                resolve();
+              }
+            });
+            // Also resolve if already activated
+            if (sw.state === 'activated') resolve();
+          });
+          setSwReady(true);
+        }
+      }
+
+      // Also check if there's already an active registration
+      if (reg.active) {
+        setSwReady(true);
+      }
+    } catch (err: any) {
+      console.error('SW registration error:', err);
+      setError('Failed to initialize proxy: ' + err.message);
+    }
+  }
 
   const handleEngineChange = (e: ProxyEngine) => {
     setEngine(e);
     localStorage.setItem('monoxide-proxy-engine', e);
   };
 
+  const isUrl = (val: string) => {
+    return /^https?:\/\//.test(val) || (val.includes('.') && !val.startsWith(' '));
+  };
+
+  const xorEncode = (str: string) => {
+    if (!str) return str;
+    return encodeURIComponent(
+      str.split('').map((char, i) =>
+        i % 2 ? String.fromCharCode(char.charCodeAt(0) ^ 2) : char
+      ).join('')
+    );
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!url.trim()) return;
+    let input = url.trim();
+    if (!input) return;
+
     setError('');
     setLoading(true);
 
-    try {
-      const { registerServiceWorker } = await import('@/lib/proxy/register');
-      await registerServiceWorker(engine);
-      setProxyUrl(encodeUrl(url.trim(), engine));
-    } catch (err: any) {
-      setError(err.message || 'Failed to start proxy');
+    // If SW isn't ready yet, try registering again and wait
+    if (!swReady) {
+      try {
+        await registerSW();
+      } catch {
+        setError('Proxy not ready. Please wait and try again.');
+        setLoading(false);
+        return;
+      }
     }
-    setLoading(false);
+
+    // Normalize URL
+    if (!isUrl(input)) {
+      input = `https://www.google.com/search?q=${encodeURIComponent(input)}`;
+    } else if (!/^https?:\/\//.test(input)) {
+      input = `https://${input}`;
+    }
+
+    const encoded = '/uv/service/' + xorEncode(input);
+    setProxyUrl(encoded);
   };
 
-  if (proxyUrl) return <ProxyFrame url={proxyUrl} onClose={() => setProxyUrl(null)} />;
+  if (proxyUrl) {
+    return (
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        zIndex: 1000, display: 'flex', flexDirection: 'column',
+        background: '#000',
+      }}>
+        <div style={{
+          height: 38, background: '#0a0a0a',
+          borderBottom: '1px solid #1a1a1a',
+          display: 'flex', alignItems: 'center', padding: '0 6px', gap: 3,
+        }}>
+          <button onClick={() => {
+            const f = document.getElementById('proxy-frame') as HTMLIFrameElement;
+            if (f?.contentWindow) f.contentWindow.history.back();
+          }} style={{ background: 'none', color: '#888', padding: 4, display: 'flex', alignItems: 'center', cursor: 'pointer', border: 'none' }}>
+            <ArrowLeft size={14} />
+          </button>
+          <button onClick={() => {
+            const f = document.getElementById('proxy-frame') as HTMLIFrameElement;
+            if (f) f.src = f.src;
+          }} style={{ background: 'none', color: '#888', padding: 4, display: 'flex', alignItems: 'center', cursor: 'pointer', border: 'none' }}>
+            <RefreshCw size={12} />
+          </button>
+          <div style={{
+            flex: 1, background: '#111', border: '1px solid #222',
+            borderRadius: 5, padding: '2px 8px', fontSize: '0.72rem',
+            color: '#666', overflow: 'hidden',
+            textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {url}
+          </div>
+          <button onClick={() => { setProxyUrl(null); setLoading(false); }} style={{
+            background: 'none', color: '#888', padding: 4,
+            display: 'flex', alignItems: 'center', cursor: 'pointer', border: 'none',
+          }}>
+            <X size={14} />
+          </button>
+        </div>
+
+        <iframe
+          id="proxy-frame"
+          src={proxyUrl}
+          style={{ flex: 1, border: 'none', width: '100%' }}
+          onLoad={() => setLoading(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div style={{
-      maxWidth: 580,
-      margin: '6rem auto 0',
+      maxWidth: 520,
+      margin: '5rem auto 0',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      gap: '2rem',
+      gap: '1.25rem',
     }}>
-      <div className="animate-in-up" style={{ textAlign: 'center' }}>
+      <div style={{ textAlign: 'center' }}>
         <div style={{
-          width: 56, height: 56, borderRadius: 16, margin: '0 auto 1rem',
+          width: 48, height: 48, borderRadius: 14, margin: '0 auto 0.6rem',
           background: 'var(--accent-muted)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <Globe size={26} style={{ color: 'var(--accent)' }} />
+          <Globe size={22} style={{ color: 'var(--accent)' }} />
         </div>
-        <h1 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '0.4rem' }}>Web Proxy</h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-          Browse freely. Enter a URL below.
+        <h1 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.2rem' }}>Web Proxy</h1>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+          Browse any site freely
         </p>
       </div>
 
       {/* Engine toggle */}
-      <div className="animate-in stagger-2" style={{
+      <div style={{
         display: 'flex',
         background: 'var(--bg-tertiary)',
-        borderRadius: 10,
-        padding: 3,
+        borderRadius: 8,
+        padding: 2,
         border: '1px solid var(--border)',
       }}>
         {(['ultraviolet', 'scramjet'] as ProxyEngine[]).map((e) => (
           <button key={e} onClick={() => handleEngineChange(e)} style={{
-            padding: '7px 18px',
-            borderRadius: 8,
-            fontSize: '0.82rem',
+            padding: '5px 14px',
+            borderRadius: 6,
+            fontSize: '0.78rem',
             fontWeight: engine === e ? 600 : 400,
             background: engine === e ? 'var(--accent)' : 'transparent',
             color: engine === e ? 'var(--bg-primary)' : 'var(--text-muted)',
-            transition: 'all 0.2s',
+            transition: 'all 0.15s',
+            cursor: 'pointer',
+            border: 'none',
           }}>
             {e === 'ultraviolet' ? 'Ultraviolet' : 'Scramjet'}
           </button>
@@ -88,10 +207,10 @@ export default function ProxyPage() {
       </div>
 
       {/* URL input */}
-      <form onSubmit={handleSubmit} className="animate-in stagger-3" style={{ width: '100%', position: 'relative' }}>
+      <form onSubmit={handleSubmit} style={{ width: '100%' }}>
         <div style={{ position: 'relative' }}>
-          <Search size={16} style={{
-            position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)',
+          <Search size={15} style={{
+            position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
             color: 'var(--text-muted)',
           }} />
           <input
@@ -99,36 +218,35 @@ export default function ProxyPage() {
             placeholder="Search or enter URL..."
             value={url}
             onChange={(e) => setUrl(e.target.value)}
+            autoFocus
             style={{
-              paddingLeft: 44,
-              paddingRight: 52,
-              height: 50,
-              fontSize: '0.95rem',
-              borderRadius: 14,
-              background: 'var(--bg-secondary)',
-              border: '1px solid var(--border)',
+              paddingLeft: 40, paddingRight: 48, height: 46,
+              fontSize: '0.9rem', borderRadius: 12,
+              background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+              width: '100%',
             }}
           />
-          <button
-            type="submit"
-            disabled={loading || !url.trim()}
-            style={{
-              position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
-              width: 38, height: 38, borderRadius: 10,
-              background: url.trim() ? 'var(--accent)' : 'var(--bg-tertiary)',
-              color: url.trim() ? 'var(--bg-primary)' : 'var(--text-muted)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'all 0.2s',
-            }}
-          >
-            <ArrowRight size={16} />
+          <button type="submit" disabled={loading || !url.trim()} style={{
+            position: 'absolute', right: 5, top: '50%', transform: 'translateY(-50%)',
+            width: 34, height: 34, borderRadius: 8,
+            background: url.trim() && !loading ? 'var(--accent)' : 'var(--bg-tertiary)',
+            color: url.trim() && !loading ? 'var(--bg-primary)' : 'var(--text-muted)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: url.trim() && !loading ? 'pointer' : 'default', border: 'none',
+          }}>
+            {loading ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <ArrowRight size={14} />}
           </button>
         </div>
       </form>
 
       {error && (
-        <p style={{ color: 'var(--danger)', fontSize: '0.82rem', animation: 'fadeIn 0.2s' }}>{error}</p>
+        <p style={{ color: '#ff4444', fontSize: '0.78rem' }}>{error}</p>
       )}
+
+      <p style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
+        {swReady ? 'Proxy ready' : 'Initializing proxy...'}
+        {' · '}{engine === 'ultraviolet' ? 'Ultraviolet' : 'Scramjet'} + Bare Server
+      </p>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Gamepad2 } from 'lucide-react';
 
 interface GameCardProps {
@@ -10,6 +11,9 @@ interface GameCardProps {
 }
 
 export default function GameCard({ name, image, category, onClick }: GameCardProps) {
+  const [imgError, setImgError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+
   return (
     <button
       onClick={onClick}
@@ -21,17 +25,18 @@ export default function GameCard({ name, image, category, onClick }: GameCardPro
         overflow: 'hidden',
         cursor: 'pointer',
         textAlign: 'left',
-        transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        transition: 'all 0.25s ease',
         display: 'flex',
         flexDirection: 'column',
+        width: '100%',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-4px) scale(1.02)';
+        e.currentTarget.style.transform = 'translateY(-3px)';
         e.currentTarget.style.borderColor = 'var(--text-muted)';
-        e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.4)';
+        e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.4)';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0) scale(1)';
+        e.currentTarget.style.transform = 'translateY(0)';
         e.currentTarget.style.borderColor = 'var(--border)';
         e.currentTarget.style.boxShadow = 'none';
       }}
@@ -46,34 +51,38 @@ export default function GameCard({ name, image, category, onClick }: GameCardPro
         overflow: 'hidden',
         position: 'relative',
       }}>
-        <Gamepad2 size={28} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
-        <img
-          src={image}
-          alt={name}
-          style={{
-            width: '100%', height: '100%', objectFit: 'cover',
-            position: 'absolute', inset: 0,
-            transition: 'transform 0.3s',
-          }}
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          onMouseEnter={(e) => { (e.target as HTMLImageElement).style.transform = 'scale(1.05)'; }}
-          onMouseLeave={(e) => { (e.target as HTMLImageElement).style.transform = 'scale(1)'; }}
-        />
+        {(!imgLoaded || imgError) && (
+          <Gamepad2 size={28} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+        )}
+        {!imgError && (
+          <img
+            src={image}
+            alt={name}
+            loading="lazy"
+            style={{
+              width: '100%', height: '100%', objectFit: 'cover',
+              position: 'absolute', inset: 0,
+              opacity: imgLoaded ? 1 : 0,
+              transition: 'opacity 0.3s',
+            }}
+            onLoad={() => setImgLoaded(true)}
+            onError={() => setImgError(true)}
+          />
+        )}
       </div>
-      <div style={{ padding: '0.75rem' }}>
-        <p style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.3rem' }}>{name}</p>
+      <div style={{ padding: '0.65rem 0.75rem' }}>
+        <p style={{ fontWeight: 600, fontSize: '0.82rem', marginBottom: '0.25rem', lineHeight: 1.2 }}>{name}</p>
         <span style={{
           display: 'inline-block',
-          padding: '2px 8px',
-          borderRadius: 6,
-          fontSize: '0.68rem',
+          padding: '2px 7px',
+          borderRadius: 5,
+          fontSize: '0.65rem',
           fontWeight: 500,
           background: 'var(--accent-muted)',
           color: 'var(--text-secondary)',
           textTransform: 'capitalize',
-          letterSpacing: '0.02em',
         }}>
-          {category}
+          {category.replace('-', ' ')}
         </span>
       </div>
     </button>

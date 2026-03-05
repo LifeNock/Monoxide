@@ -24,12 +24,12 @@ export async function POST(request: NextRequest) {
   const user = getAuthUser();
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-  const { channelId, content, replyTo } = await request.json();
-  if (!channelId || !content?.trim()) {
+  const { channelId, content, replyTo, imageUrl } = await request.json();
+  if (!channelId || (!content?.trim() && !imageUrl)) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
 
-  if (content.length > 2000) {
+  if (content && content.length > 2000) {
     return NextResponse.json({ error: 'Message too long' }, { status: 400 });
   }
 
@@ -46,9 +46,9 @@ export async function POST(request: NextRequest) {
 
   const id = randomUUID();
   db.prepare(`
-    INSERT INTO messages (id, channel_id, user_id, content, reply_to)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(id, channelId, user.id, content.trim(), replyTo || null);
+    INSERT INTO messages (id, channel_id, user_id, content, image_url, reply_to)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(id, channelId, user.id, (content || '').trim(), imageUrl || null, replyTo || null);
 
   // Fetch the full message with user info
   const message = db.prepare(`

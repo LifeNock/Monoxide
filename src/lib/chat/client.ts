@@ -5,6 +5,7 @@ export interface Message {
   channel_id: string;
   user_id: string;
   content: string;
+  image_url: string | null;
   reply_to: string | null;
   is_deleted: number;
   created_at: string;
@@ -35,11 +36,11 @@ class ChatClient {
     return res.json();
   }
 
-  async sendMessage(channelId: string, content: string, replyTo?: string): Promise<Message | null> {
+  async sendMessage(channelId: string, content: string, replyTo?: string, imageUrl?: string): Promise<Message | null> {
     const res = await fetch('/api/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ channelId, content, replyTo }),
+      body: JSON.stringify({ channelId, content, replyTo, imageUrl }),
     });
 
     if (!res.ok) {

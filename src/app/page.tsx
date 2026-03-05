@@ -3,20 +3,38 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Globe, Gamepad2, MessageCircle, Shield, ArrowRight } from 'lucide-react';
 import ParticleBackground from '@/components/ParticleBackground';
 import FunFact from '@/components/FunFact';
 
 const features = [
-  { icon: Globe, title: 'Web Proxy', desc: 'Dual-engine browsing with Ultraviolet & Scramjet', href: '/proxy' },
-  { icon: Gamepad2, title: 'Games', desc: '35+ curated browser games, zero downloads', href: '/games' },
+  { icon: Globe, title: 'Web Proxy', desc: 'Browse freely with Ultraviolet & Scramjet', href: '/proxy' },
+  { icon: Gamepad2, title: '110+ Games', desc: 'Full gnmath library, instant play', href: '/games' },
   { icon: MessageCircle, title: 'Chat', desc: 'Real-time channels with custom emojis & roles', href: '/chat' },
   { icon: Shield, title: 'Stealth', desc: 'Panic key, tab cloaking, and privacy tools', href: '/settings/privacy' },
 ];
 
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    setMounted(true);
+    // Check if user is logged in
+    fetch('/api/auth/me').then(r => {
+      if (r.ok) setIsLoggedIn(true);
+    }).catch(() => {});
+  }, []);
+
+  const handleGetStarted = () => {
+    if (isLoggedIn) {
+      router.push('/games');
+    } else {
+      router.push('/signup');
+    }
+  };
 
   return (
     <div style={{ minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
@@ -36,7 +54,6 @@ export default function LandingPage() {
         {/* Logo */}
         <div className={mounted ? 'animate-in-up stagger-1' : ''} style={{
           marginBottom: '1.5rem',
-          animation: mounted ? undefined : 'none',
         }}>
           <div style={{
             width: 90,
@@ -87,27 +104,29 @@ export default function LandingPage() {
           justifyContent: 'center',
           marginBottom: '4rem',
         }}>
-          <Link href="/proxy">
-            <button className="btn-primary" style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '14px 28px',
-              fontSize: '0.95rem',
-              borderRadius: 12,
-            }}>
-              Get Started <ArrowRight size={16} />
-            </button>
-          </Link>
-          <Link href="/signup">
-            <button className="btn-secondary" style={{
-              padding: '14px 28px',
-              fontSize: '0.95rem',
-              borderRadius: 12,
-            }}>
-              Create Account
-            </button>
-          </Link>
+          <button onClick={handleGetStarted} className="btn-primary" style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '14px 28px',
+            fontSize: '0.95rem',
+            borderRadius: 12,
+            cursor: 'pointer',
+          }}>
+            Get Started <ArrowRight size={16} />
+          </button>
+          {!isLoggedIn && (
+            <Link href="/login">
+              <button className="btn-secondary" style={{
+                padding: '14px 28px',
+                fontSize: '0.95rem',
+                borderRadius: 12,
+                cursor: 'pointer',
+              }}>
+                Sign In
+              </button>
+            </Link>
+          )}
         </div>
 
         {/* Feature cards */}
@@ -119,7 +138,7 @@ export default function LandingPage() {
           width: '100%',
           padding: '0 1rem',
         }}>
-          {features.map((f, i) => (
+          {features.map((f) => (
             <Link key={f.title} href={f.href} style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className="glass" style={{
                 padding: '1.25rem',

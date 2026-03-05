@@ -47,7 +47,7 @@ export default function RootLayout({
       lang="en"
       data-theme="carbon"
       className={`${barlow.variable} ${rajdhani.variable} ${spaceGrotesk.variable} ${ibmPlexSans.variable}`}
-      style={{ ['--font-body' as string]: "'Barlow', sans-serif" }}
+      style={{ ['--font-body' as string]: "var(--font-barlow), sans-serif" }}
     >
       <body>
         <ThemeProvider>
