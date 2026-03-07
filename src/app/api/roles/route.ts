@@ -1,56 +1,75 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getAuthUser } from '@/lib/auth';
-import { randomUUID } from 'crypto';
+
+const ADMIN_USERNAMES = ['lifenock'];
+
+function isAdmin(username: string): boolean {
+  return ADMIN_USERNAMES.includes(username.toLowerCase());
+}
 
 export async function GET() {
-  const db = getDb();
-  const roles = db.prepare('SELECT * FROM roles ORDER BY priority DESC').all();
-  return NextResponse.json(roles.map((r: any) => ({
-    ...r,
-    permissions: JSON.parse(r.permissions || '{}'),
-  })));
+  const { data: roles } = await supabaseAdmin
+    .from('roles')
+    .select('*')
+    .order('priority', { ascending: false });
+
+  return NextResponse.json(roles || []);
 }
 
 export async function POST(request: NextRequest) {
-  const user = getAuthUser();
+  const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!isAdmin(user.username)) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
 
   const body = await request.json();
-  const db = getDb();
-  const id = randomUUID();
 
-  db.prepare(`
-    INSERT INTO roles (id, name, color, priority, permissions)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(id, body.name, body.color || '#8E8E8E', body.priority || 0, JSON.stringify(body.permissions || {}));
+  const { data: role, error } = await supabaseAdmin
+    .from('roles')
+    .insert({
+      name: body.name,
+      color: body.color || '#8E8E8E',
+      priority: body.priority || 0,
+      permissions: body.permissions || {},
+    })
+    .select()
+    .single();
 
-  const role = db.prepare('SELECT * FROM roles WHERE id = ?').get(id) as any;
-  return NextResponse.json({ ...role, permissions: JSON.parse(role.permissions) });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(role);
 }
 
 export async function PUT(request: NextRequest) {
-  const user = getAuthUser();
+  const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!isAdmin(user.username)) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
 
   const body = await request.json();
-  const db = getDb();
 
-  db.prepare(`
-    UPDATE roles SET name = ?, color = ?, priority = ?, permissions = ?
-    WHERE id = ?
-  `).run(body.name, body.color, body.priority, JSON.stringify(body.permissions), body.id);
+  await supabaseAdmin
+    .from('roles')
+    .update({
+      name: body.name,
+      color: body.color,
+      priority: body.priority,
+      permissions: body.permissions,
+    })
+    .eq('id', body.id);
 
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(request: NextRequest) {
-  const user = getAuthUser();
+  const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!isAdmin(user.username)) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
 
   const { id } = await request.json();
-  const db = getDb();
-  db.prepare('DELETE FROM roles WHERE id = ?').run(id);
+
+  await supabaseAdmin
+    .from('roles')
+    .delete()
+    .eq('id', id);
 
   return NextResponse.json({ ok: true });
 }

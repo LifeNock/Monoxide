@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
-  const user = getAuthUser();
+  const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
   const formData = await request.formData();
@@ -13,17 +12,23 @@ export async function POST(request: NextRequest) {
 
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
-
-  // Save to public/uploads/avatars/
-  const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'avatars');
-  await mkdir(uploadsDir, { recursive: true });
-
   const ext = file.name.split('.').pop() || 'png';
-  const filename = `${user.id}.${ext}`;
-  const filepath = path.join(uploadsDir, filename);
+  const filePath = `${user.id}.${ext}`;
 
-  await writeFile(filepath, buffer);
+  const { error } = await supabaseAdmin.storage
+    .from('avatars')
+    .upload(filePath, buffer, {
+      contentType: file.type,
+      upsert: true,
+    });
 
-  const url = `/uploads/avatars/${filename}`;
-  return NextResponse.json({ url });
+  if (error) {
+    return NextResponse.json({ error: 'Upload failed: ' + error.message }, { status: 500 });
+  }
+
+  const { data: { publicUrl } } = supabaseAdmin.storage
+    .from('avatars')
+    .getPublicUrl(filePath);
+
+  return NextResponse.json({ url: publicUrl });
 }

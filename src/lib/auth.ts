@@ -1,8 +1,5 @@
-import jwt from 'jsonwebtoken';
-import { cookies } from 'next/headers';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'monoxide-dev-secret-change-in-production';
-const COOKIE_NAME = 'monoxide-token';
+import { createSupabaseServerClient } from './supabase-server';
+import { supabaseAdmin } from './supabase';
 
 export interface AuthUser {
   id: string;
@@ -11,27 +8,20 @@ export interface AuthUser {
   display_name: string;
 }
 
-export function signToken(user: AuthUser): string {
-  return jwt.sign(user, JWT_SECRET, { expiresIn: '7d' });
-}
-
-export function verifyToken(token: string): AuthUser | null {
+export async function getAuthUser(): Promise<AuthUser | null> {
   try {
-    return jwt.verify(token, JWT_SECRET) as AuthUser;
+    const supabase = createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email, username, display_name')
+      .eq('id', user.id)
+      .single();
+
+    return profile || null;
   } catch {
     return null;
   }
 }
-
-export function getAuthUser(): AuthUser | null {
-  try {
-    const cookieStore = cookies();
-    const token = cookieStore.get(COOKIE_NAME)?.value;
-    if (!token) return null;
-    return verifyToken(token);
-  } catch {
-    return null;
-  }
-}
-
-export { JWT_SECRET, COOKIE_NAME };

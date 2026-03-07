@@ -3,9 +3,9 @@
 import { usePathname } from 'next/navigation';
 
 const pageTitles: Record<string, string> = {
-  '/proxy': 'Web Proxy',
-  '/games': 'Games',
-  '/chat': 'Chat',
+  '/proxy': 'Monoxide Proxy',
+  '/games': 'Monoxide Games',
+  '/chat': 'Monoxide Chat',
   '/settings': 'Settings',
   '/settings/profile': 'Profile Settings',
   '/settings/appearance': 'Appearance',

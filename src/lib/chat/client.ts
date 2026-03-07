@@ -13,6 +13,8 @@ export interface Message {
   display_name: string;
   avatar_url: string;
   pronouns: string;
+  role_name: string | null;
+  role_color: string | null;
 }
 
 type MessageCallback = (msg: Message) => void;

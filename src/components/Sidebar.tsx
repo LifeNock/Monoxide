@@ -1,10 +1,10 @@
 'use client';
 
+import { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Globe, Gamepad2, MessageCircle, Settings, User, LogOut } from 'lucide-react';
-import { useTheme, type Theme } from '@/contexts/ThemeContext';
 
 const navItems = [
   { href: '/proxy', label: 'Proxy', icon: Globe },
@@ -13,18 +13,19 @@ const navItems = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
-const themeGradients: Record<Theme, string> = {
-  carbon: 'linear-gradient(135deg, #FFFFFF 0%, #666666 100%)',
-  light: 'linear-gradient(135deg, #1A1A1A 0%, #666666 100%)',
-  midnight: 'linear-gradient(135deg, #8BA4FF 0%, #C084FC 100%)',
-  forest: 'linear-gradient(135deg, #66DD88 0%, #22BBAA 100%)',
-  crimson: 'linear-gradient(135deg, #FF6666 0%, #FF8833 100%)',
-};
-
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { theme } = useTheme();
+  const [navigating, setNavigating] = useState<string | null>(null);
+
+  useEffect(() => {
+    setNavigating(null);
+  }, [pathname]);
+
+  const handleNav = (href: string) => {
+    if (pathname.startsWith(href)) return;
+    setNavigating(href);
+  };
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -44,7 +45,6 @@ export default function Sidebar() {
       left: 0,
       top: 0,
     }}>
-      {/* Wordmark */}
       <Link href="/" style={{
         display: 'flex',
         alignItems: 'center',
@@ -53,10 +53,21 @@ export default function Sidebar() {
         borderBottom: '1px solid var(--border)',
         textDecoration: 'none',
       }}>
-        <Image src="/MonoxideLogo.png" alt="" width={28} height={28} />
+        <div style={{
+          width: 42,
+          height: 42,
+          borderRadius: 11,
+          background: 'var(--logo-bg)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          <Image src="/MonoxideLogo.png" alt="" width={32} height={32} />
+        </div>
         <span className="wordmark" style={{
           fontSize: '1.15rem',
-          background: themeGradients[theme],
+          background: 'linear-gradient(135deg, var(--gradient-1) 0%, var(--gradient-2) 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
         }}>
@@ -64,12 +75,12 @@ export default function Sidebar() {
         </span>
       </Link>
 
-      {/* Nav */}
       <nav style={{ flex: 1, padding: '0.75rem 0.5rem', display: 'flex', flexDirection: 'column', gap: '2px' }}>
         {navItems.map(({ href, label, icon: Icon }, i) => {
           const active = pathname.startsWith(href);
+          const loading = navigating === href;
           return (
-            <Link key={href} href={href} className={`animate-in stagger-${i + 1}`} style={{
+            <Link key={href} href={href} onClick={() => handleNav(href)} className={`animate-in stagger-${i + 1}`} style={{
               display: 'flex',
               alignItems: 'center',
               gap: '0.75rem',
@@ -84,10 +95,11 @@ export default function Sidebar() {
               position: 'relative',
             }}
               onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = 'var(--bg-hover)'; }}
-              onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+              onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = active ? 'var(--accent-muted)' : 'transparent'; }}
             >
               <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
               {label}
+              {loading && <div className="nav-spinner" />}
               {active && (
                 <div style={{
                   position: 'absolute',
@@ -105,7 +117,6 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Bottom */}
       <div style={{ padding: '0.5rem', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
         <Link href="/settings/profile" style={{
           display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem',

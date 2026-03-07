@@ -33,7 +33,9 @@ export default function ProfilePage() {
     <div style={{ maxWidth: 640, margin: '0 auto' }}>
       <div style={{
         height: 140,
-        background: profile.banner_color || 'var(--accent)',
+        background: profile.banner_url
+          ? `url(${profile.banner_url}) center/cover`
+          : (profile.banner_color || 'var(--accent)'),
         borderRadius: '12px 12px 0 0',
         position: 'relative',
       }}>

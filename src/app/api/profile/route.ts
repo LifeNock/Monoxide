@@ -1,53 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getAuthUser } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   const username = request.nextUrl.searchParams.get('username');
   if (!username) return NextResponse.json({ error: 'Username required' }, { status: 400 });
 
-  const db = getDb();
-  const profile = db.prepare(`
-    SELECT id, username, display_name, avatar_url, bio, pronouns, banner_color, created_at
-    FROM users WHERE username = ?
-  `).get(username);
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('id, username, display_name, avatar_url, bio, pronouns, banner_color, banner_url, created_at')
+    .eq('username', username)
+    .single();
 
   if (!profile) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   // Get badges
-  const badges = db.prepare(`
-    SELECT b.* FROM badges b
-    JOIN user_badges ub ON b.id = ub.badge_id
-    WHERE ub.user_id = ?
-  `).all((profile as any).id);
+  const { data: badges } = await supabaseAdmin
+    .from('user_badges')
+    .select('badge:badges(*)')
+    .eq('user_id', profile.id);
 
-  // Get top role
-  const roles = db.prepare(`
-    SELECT r.* FROM roles r
-    JOIN user_roles ur ON r.id = ur.role_id
-    WHERE ur.user_id = ?
-    ORDER BY r.priority DESC
-  `).all((profile as any).id);
+  // Get roles
+  const { data: roles } = await supabaseAdmin
+    .from('user_roles')
+    .select('role:roles(*)')
+    .eq('user_id', profile.id)
+    .order('role(priority)', { ascending: false });
 
-  return NextResponse.json({ profile, badges, roles });
+  return NextResponse.json({
+    profile,
+    badges: badges?.map((b: any) => b.badge) || [],
+    roles: roles?.map((r: any) => r.role) || [],
+  });
 }
 
 export async function PUT(request: NextRequest) {
-  const user = getAuthUser();
+  const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-  const { displayName, bio, pronouns, bannerColor, avatarUrl } = await request.json();
-  const db = getDb();
+  const { displayName, bio, pronouns, bannerColor, avatarUrl, bannerUrl } = await request.json();
 
-  db.prepare(`
-    UPDATE users SET
-      display_name = COALESCE(?, display_name),
-      bio = COALESCE(?, bio),
-      pronouns = COALESCE(?, pronouns),
-      banner_color = COALESCE(?, banner_color),
-      avatar_url = COALESCE(?, avatar_url)
-    WHERE id = ?
-  `).run(displayName, bio, pronouns, bannerColor, avatarUrl, user.id);
+  const updates: Record<string, any> = {};
+  if (displayName !== undefined) updates.display_name = displayName;
+  if (bio !== undefined) updates.bio = bio;
+  if (pronouns !== undefined) updates.pronouns = pronouns;
+  if (bannerColor !== undefined) updates.banner_color = bannerColor;
+  if (avatarUrl !== undefined) updates.avatar_url = avatarUrl;
+  if (bannerUrl !== undefined) updates.banner_url = bannerUrl;
+
+  await supabaseAdmin
+    .from('profiles')
+    .update(updates)
+    .eq('id', user.id);
 
   return NextResponse.json({ ok: true });
 }

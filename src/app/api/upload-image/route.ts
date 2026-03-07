@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
-import { writeFile, mkdir } from 'fs/promises';
+import { supabaseAdmin } from '@/lib/supabase';
 import { randomUUID } from 'crypto';
-import path from 'path';
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
 export async function POST(request: NextRequest) {
-  const user = getAuthUser();
+  const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
   const formData = await request.formData();
@@ -26,15 +25,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'File too large (max 5MB)' }, { status: 400 });
   }
 
-  const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-  await mkdir(uploadsDir, { recursive: true });
-
-  const ext = (file.name.split('.').pop() || 'png').replace(/[^a-zA-Z0-9]/g, '').slice(0, 5);
-  const filename = `${randomUUID()}.${ext}`;
-  const filepath = path.join(uploadsDir, filename);
-
   const bytes = await file.arrayBuffer();
-  await writeFile(filepath, Buffer.from(bytes));
+  const buffer = Buffer.from(bytes);
+  const ext = (file.name.split('.').pop() || 'png').replace(/[^a-zA-Z0-9]/g, '').slice(0, 5);
+  const filePath = `${randomUUID()}.${ext}`;
 
-  return NextResponse.json({ url: `/uploads/${filename}` });
+  const { error } = await supabaseAdmin.storage
+    .from('uploads')
+    .upload(filePath, buffer, {
+      contentType: file.type,
+    });
+
+  if (error) {
+    return NextResponse.json({ error: 'Upload failed: ' + error.message }, { status: 500 });
+  }
+
+  const { data: { publicUrl } } = supabaseAdmin.storage
+    .from('uploads')
+    .getPublicUrl(filePath);
+
+  return NextResponse.json({ url: publicUrl });
 }

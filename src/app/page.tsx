@@ -9,10 +9,10 @@ import ParticleBackground from '@/components/ParticleBackground';
 import FunFact from '@/components/FunFact';
 
 const features = [
-  { icon: Globe, title: 'Web Proxy', desc: 'Browse freely with Ultraviolet & Scramjet', href: '/proxy' },
-  { icon: Gamepad2, title: '110+ Games', desc: 'Full gnmath library, instant play', href: '/games' },
-  { icon: MessageCircle, title: 'Chat', desc: 'Real-time channels with custom emojis & roles', href: '/chat' },
-  { icon: Shield, title: 'Stealth', desc: 'Panic key, tab cloaking, and privacy tools', href: '/settings/privacy' },
+  { icon: Globe, title: 'Web Tools', desc: 'Integrated browsing utilities', href: '/proxy' },
+  { icon: Gamepad2, title: 'Activities', desc: 'Interactive apps and more', href: '/games' },
+  { icon: MessageCircle, title: 'Discussions', desc: 'Real-time channels and groups', href: '/chat' },
+  { icon: Shield, title: 'Privacy', desc: 'Focus mode and privacy tools', href: '/settings/privacy' },
 ];
 
 export default function LandingPage() {
@@ -73,7 +73,7 @@ export default function LandingPage() {
         <h1 className={`wordmark ${mounted ? 'animate-in-up stagger-2' : ''}`} style={{
           fontSize: 'clamp(3rem, 8vw, 5rem)',
           fontWeight: 900,
-          background: 'linear-gradient(135deg, #FFFFFF 0%, #666666 100%)',
+          background: 'linear-gradient(135deg, var(--gradient-1) 0%, var(--gradient-2) 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
@@ -93,7 +93,7 @@ export default function LandingPage() {
           fontWeight: 300,
           letterSpacing: '0.02em',
         }}>
-          The all-in-one unblocked platform
+          All your tools, one place
         </p>
 
         {/* CTA buttons */}
@@ -132,7 +132,7 @@ export default function LandingPage() {
         {/* Feature cards */}
         <div className={mounted ? 'animate-in-up stagger-5' : ''} style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gridTemplateColumns: 'repeat(4, 1fr)',
           gap: '0.75rem',
           maxWidth: 900,
           width: '100%',
@@ -147,6 +147,9 @@ export default function LandingPage() {
                 transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                 position: 'relative',
                 overflow: 'hidden',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
               }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-4px)';

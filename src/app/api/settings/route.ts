@@ -1,43 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getAuthUser } from '@/lib/auth';
 
 export async function GET() {
-  const user = getAuthUser();
+  const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-  const db = getDb();
-  const settings = db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(user.id);
+  const { data: settings } = await supabaseAdmin
+    .from('user_settings')
+    .select('*')
+    .eq('user_id', user.id)
+    .single();
+
   return NextResponse.json(settings || {});
 }
 
 export async function PUT(request: NextRequest) {
-  const user = getAuthUser();
+  const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
   const body = await request.json();
-  const db = getDb();
 
-  // Upsert settings
-  db.prepare(`
-    INSERT INTO user_settings (user_id, theme, font, panic_key, panic_url, about_blank_cloak, dms_enabled)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(user_id) DO UPDATE SET
-      theme = COALESCE(excluded.theme, theme),
-      font = COALESCE(excluded.font, font),
-      panic_key = COALESCE(excluded.panic_key, panic_key),
-      panic_url = COALESCE(excluded.panic_url, panic_url),
-      about_blank_cloak = COALESCE(excluded.about_blank_cloak, about_blank_cloak),
-      dms_enabled = COALESCE(excluded.dms_enabled, dms_enabled)
-  `).run(
-    user.id,
-    body.theme || 'carbon',
-    body.font || 'barlow',
-    body.panicKey || '`',
-    body.panicUrl || 'https://www.google.com',
-    body.aboutBlankCloak ? 1 : 0,
-    body.dmsEnabled !== false ? 1 : 0,
-  );
+  await supabaseAdmin
+    .from('user_settings')
+    .upsert({
+      user_id: user.id,
+      theme: body.theme || 'carbon',
+      font: body.font || 'barlow',
+      panic_key: body.panicKey || '`',
+      panic_url: body.panicUrl || 'https://www.google.com',
+      about_blank_cloak: body.aboutBlankCloak || false,
+      dms_enabled: body.dmsEnabled !== false,
+    }, { onConflict: 'user_id' });
 
   return NextResponse.json({ ok: true });
 }

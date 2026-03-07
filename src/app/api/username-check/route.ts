@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   const username = request.nextUrl.searchParams.get('username');
@@ -12,8 +12,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ available: false, error: 'Invalid characters' });
   }
 
-  const db = getDb();
-  const existing = db.prepare('SELECT username FROM users WHERE username = ?').get(username);
+  const { data: existing } = await supabaseAdmin
+    .from('profiles')
+    .select('username')
+    .eq('username', username)
+    .single();
 
   return NextResponse.json({ available: !existing });
 }

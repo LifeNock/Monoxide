@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
-import bcrypt from 'bcryptjs';
-import { signToken, COOKIE_NAME } from '@/lib/auth';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,38 +10,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
     }
 
-    const db = getDb();
-    // Accept email or username
-    const user = db.prepare('SELECT * FROM users WHERE email = ? OR username = ?').get(email, email) as any;
+    // Support login by username or email
+    let loginEmail = email;
+    if (!email.includes('@')) {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('email')
+        .eq('username', email)
+        .single();
 
-    if (!user) {
+      if (!profile) {
+        return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+      }
+      loginEmail = profile.email;
+    }
+
+    const supabase = createSupabaseServerClient();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: loginEmail,
+      password,
+    });
+
+    if (error) {
+      // Check if the error is due to unconfirmed email
+      if (error.message.toLowerCase().includes('email not confirmed')) {
+        return NextResponse.json({
+          error: 'Please confirm your email before signing in.',
+          code: 'EMAIL_NOT_CONFIRMED',
+          email: loginEmail,
+        }, { status: 403 });
+      }
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) {
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
-    }
+    // Fetch profile
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email, username, display_name')
+      .eq('id', data.user.id)
+      .single();
 
-    const token = signToken({
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      display_name: user.display_name,
-    });
-
-    const response = NextResponse.json({
-      user: { id: user.id, email: user.email, username: user.username, display_name: user.display_name },
-    });
-    response.cookies.set(COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: false,
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7,
-      path: '/',
-    });
-
-    return response;
+    return NextResponse.json({ user: profile });
   } catch (err: any) {
     console.error('Login error:', err);
     return NextResponse.json({ error: err.message || 'Login failed' }, { status: 500 });

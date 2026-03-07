@@ -26,5 +26,7 @@ export async function GET(request: NextRequest) {
     filtered.sort((a, b) => (b.popular ? 1 : 0) - (a.popular ? 1 : 0));
   }
 
-  return NextResponse.json(filtered);
+  const res = NextResponse.json(filtered);
+  res.headers.set('Cache-Control', 'public, max-age=300, s-maxage=300');
+  return res;
 }

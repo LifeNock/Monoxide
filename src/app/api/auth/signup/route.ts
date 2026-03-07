@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
-import bcrypt from 'bcryptjs';
-import { randomUUID } from 'crypto';
-import { signToken, COOKIE_NAME } from '@/lib/auth';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,48 +18,74 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid username' }, { status: 400 });
     }
 
-    const db = getDb();
+    // Check username uniqueness
+    const { data: existing } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('username', username)
+      .single();
 
-    // Check uniqueness
-    const existing = db.prepare('SELECT id FROM users WHERE email = ? OR username = ?').get(email, username);
     if (existing) {
-      return NextResponse.json({ error: 'Email or username already taken' }, { status: 409 });
+      return NextResponse.json({ error: 'Username already taken' }, { status: 409 });
     }
 
-    const id = randomUUID();
-    const passwordHash = await bcrypt.hash(password, 10);
+    // Sign up with Supabase Auth
+    const supabase = createSupabaseServerClient();
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { username, display_name: displayName },
+      },
+    });
 
-    db.prepare(`
-      INSERT INTO users (id, email, password_hash, username, display_name, bio, pronouns)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(id, email, passwordHash, username, displayName, bio || '', pronouns || '');
+    if (authError) {
+      if (authError.message.includes('already registered')) {
+        return NextResponse.json({ error: 'Email already taken' }, { status: 409 });
+      }
+      return NextResponse.json({ error: authError.message }, { status: 400 });
+    }
+
+    const userId = authData.user!.id;
+
+    // Create profile
+    await supabaseAdmin.from('profiles').insert({
+      id: userId,
+      email,
+      username,
+      display_name: displayName,
+      bio: bio || '',
+      pronouns: pronouns || '',
+    });
 
     // Create default settings
-    db.prepare('INSERT INTO user_settings (user_id) VALUES (?)').run(id);
+    await supabaseAdmin.from('user_settings').insert({ user_id: userId });
 
     // Assign @everyone role
-    const everyoneRole = db.prepare("SELECT id FROM roles WHERE name = '@everyone'").get() as any;
+    const { data: everyoneRole } = await supabaseAdmin
+      .from('roles')
+      .select('id')
+      .eq('name', '@everyone')
+      .single();
+
     if (everyoneRole) {
-      db.prepare('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)').run(id, everyoneRole.id);
+      await supabaseAdmin.from('user_roles').insert({
+        user_id: userId,
+        role_id: everyoneRole.id,
+      });
     }
 
     // Newsletter
     if (newsletter) {
-      db.prepare('INSERT INTO newsletter_emails (id, email, user_id) VALUES (?, ?, ?)').run(randomUUID(), email, id);
+      await supabaseAdmin.from('newsletter_emails').insert({
+        email,
+        user_id: userId,
+      });
     }
 
-    const token = signToken({ id, email, username, display_name: displayName });
-
-    const response = NextResponse.json({ user: { id, email, username, display_name: displayName } });
-    response.cookies.set(COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: false,
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7,
-      path: '/',
+    return NextResponse.json({
+      user: { id: userId, email, username, display_name: displayName },
     });
-
-    return response;
   } catch (err: any) {
     console.error('Signup error:', err);
     return NextResponse.json({ error: err.message || 'Signup failed' }, { status: 500 });

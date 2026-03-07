@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loading Resources...</title>
+  <link rel="icon" href="https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico">
+</head>
+<body>
+<script>
+(function() {
+  // === CONFIGURE THIS ===
+  var TARGET = 'https://YOUR-MONOXIDE-URL.com';
+  // ======================
+
+  var win = window.open('about:blank', '_blank');
+  if (win) {
+    win.document.write(
+      '<!DOCTYPE html><html><head>' +
+      '<title>Google Docs</title>' +
+      '<link rel="icon" href="https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico">' +
+      '<style>*{margin:0;padding:0}body{overflow:hidden}iframe{width:100vw;height:100vh;border:none}</style>' +
+      '</head><body>' +
+      '<iframe src="' + TARGET + '" allow="autoplay; fullscreen; gamepad; accelerometer; gyroscope" allowfullscreen></iframe>' +
+      '</body></html>'
+    );
+    win.document.close();
+  }
+  // Redirect this tab away so it disappears
+  window.location.replace('https://docs.google.com');
+})();
+</script>
+<noscript>
+  <meta http-equiv="refresh" content="0;url=https://docs.google.com">
+</noscript>
+</body>
+</html>

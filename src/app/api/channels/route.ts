@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET() {
-  const db = getDb();
-  const channels = db.prepare('SELECT * FROM channels ORDER BY created_at ASC').all();
-  return NextResponse.json(channels);
+  const { data: channels } = await supabaseAdmin
+    .from('channels')
+    .select('*')
+    .order('created_at', { ascending: true });
+
+  return NextResponse.json(channels || []);
 }

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Trash2, Reply, SmilePlus } from 'lucide-react';
 import type { Message } from '@/lib/chat/client';
+import UserPopup from './UserPopup';
 
 interface MessageItemProps {
   message: Message;
@@ -22,12 +23,22 @@ export default function MessageItem({
   reactions = [],
 }: MessageItemProps) {
   const [hovering, setHovering] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupPos, setPopupPos] = useState({ x: 0, y: 0 });
+  const avatarRef = useRef<HTMLDivElement>(null);
   const isOwn = currentUserId === message.user_id;
 
   const time = new Date(message.created_at).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
   });
+
+  const handleAvatarClick = () => {
+    if (!avatarRef.current) return;
+    const rect = avatarRef.current.getBoundingClientRect();
+    setPopupPos({ x: rect.right + 8, y: rect.top });
+    setShowPopup(true);
+  };
 
   return (
     <div
@@ -43,15 +54,19 @@ export default function MessageItem({
         transition: 'background 0.1s',
       }}
     >
-      {/* Avatar */}
-      <div style={{
-        width: 36,
-        height: 36,
-        borderRadius: '50%',
-        background: 'var(--bg-tertiary)',
-        flexShrink: 0,
-        overflow: 'hidden',
-      }}>
+      <div
+        ref={avatarRef}
+        onClick={handleAvatarClick}
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: '50%',
+          background: 'var(--bg-tertiary)',
+          flexShrink: 0,
+          overflow: 'hidden',
+          cursor: 'pointer',
+        }}
+      >
         {message.avatar_url && (
           <img
             src={message.avatar_url}
@@ -61,12 +76,27 @@ export default function MessageItem({
         )}
       </div>
 
-      {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <span
+            onClick={handleAvatarClick}
+            style={{
+              fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer',
+              color: message.role_color || 'var(--text-primary)',
+            }}
+          >
             {message.display_name || 'Unknown'}
           </span>
+          {message.role_name && message.role_name !== '@everyone' && (
+            <span style={{
+              padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem',
+              fontWeight: 600, background: `${message.role_color}22`,
+              color: message.role_color || 'var(--text-muted)',
+              lineHeight: 1.4,
+            }}>
+              {message.role_name}
+            </span>
+          )}
           <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>{time}</span>
         </div>
         {message.content && (
@@ -81,7 +111,6 @@ export default function MessageItem({
           </p>
         )}
 
-        {/* Image attachment */}
         {message.image_url && (
           <div style={{ marginTop: 4 }}>
             <img
@@ -99,7 +128,6 @@ export default function MessageItem({
           </div>
         )}
 
-        {/* Reactions */}
         {reactions.length > 0 && (
           <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
             {reactions.map((r) => (
@@ -125,7 +153,6 @@ export default function MessageItem({
         )}
       </div>
 
-      {/* Actions */}
       {hovering && (
         <div style={{
           position: 'absolute',
@@ -162,6 +189,17 @@ export default function MessageItem({
             </button>
           )}
         </div>
+      )}
+
+      {showPopup && (
+        <UserPopup
+          username={message.username}
+          displayName={message.display_name || 'Unknown'}
+          avatarUrl={message.avatar_url}
+          pronouns={message.pronouns}
+          onClose={() => setShowPopup(false)}
+          position={popupPos}
+        />
       )}
     </div>
   );

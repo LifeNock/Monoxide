@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 export default function PrivacySettingsPage() {
   const [panicKey, setPanicKey] = useState('`');
   const [panicUrl, setPanicUrl] = useState('https://www.google.com');
-  const [aboutBlankCloak, setAboutBlankCloak] = useState(false);
   const [dmsEnabled, setDmsEnabled] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -14,7 +13,6 @@ export default function PrivacySettingsPage() {
   useEffect(() => {
     setPanicKey(localStorage.getItem('monoxide-panic-key') || '`');
     setPanicUrl(localStorage.getItem('monoxide-panic-url') || 'https://www.google.com');
-    setAboutBlankCloak(localStorage.getItem('monoxide-cloak') === 'true');
   }, []);
 
   const handleSave = async () => {
@@ -22,12 +20,10 @@ export default function PrivacySettingsPage() {
     setSaved(false);
     localStorage.setItem('monoxide-panic-key', panicKey);
     localStorage.setItem('monoxide-panic-url', panicUrl);
-    localStorage.setItem('monoxide-cloak', String(aboutBlankCloak));
-
     await fetch('/api/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ panicKey, panicUrl, aboutBlankCloak, dmsEnabled }),
+      body: JSON.stringify({ panicKey, panicUrl, dmsEnabled }),
     });
 
     setSaving(false);
@@ -62,21 +58,6 @@ export default function PrivacySettingsPage() {
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: 6 }}>Redirect URL</label>
             <input type="url" value={panicUrl} onChange={(e) => setPanicUrl(e.target.value)} placeholder="https://www.google.com" style={{ width: '100%' }} />
-          </div>
-        </div>
-
-        <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem' }}>About:Blank Cloaking</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Open Monoxide in an about:blank tab with a fake title.</p>
-            </div>
-            <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24 }}>
-              <input type="checkbox" checked={aboutBlankCloak} onChange={(e) => setAboutBlankCloak(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
-              <span style={{ position: 'absolute', cursor: 'pointer', inset: 0, background: aboutBlankCloak ? 'var(--accent)' : 'var(--bg-tertiary)', borderRadius: 12, transition: '0.2s' }}>
-                <span style={{ position: 'absolute', height: 18, width: 18, left: aboutBlankCloak ? 22 : 3, bottom: 3, background: '#fff', borderRadius: '50%', transition: '0.2s' }} />
-              </span>
-            </label>
           </div>
         </div>
 

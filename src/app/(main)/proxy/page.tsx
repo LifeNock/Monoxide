@@ -1,61 +1,68 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useRef, FormEvent } from 'react';
 import { Globe, ArrowRight, Search, X, ArrowLeft, RefreshCw, Loader2 } from 'lucide-react';
 
 type ProxyEngine = 'ultraviolet' | 'scramjet';
 
 export default function ProxyPage() {
   const [url, setUrl] = useState('');
-  const [engine, setEngine] = useState<ProxyEngine>('ultraviolet');
+  const [engine, setEngine] = useState<ProxyEngine>('scramjet');
   const [proxyUrl, setProxyUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [swReady, setSwReady] = useState(false);
+  const [ready, setReady] = useState(false);
+  const initRef = useRef(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('monoxide-proxy-engine') as ProxyEngine | null;
     if (saved) setEngine(saved);
-    registerSW();
+    if (!initRef.current) {
+      initRef.current = true;
+      initProxy();
+    }
   }, []);
 
-  async function registerSW() {
+  async function initProxy() {
     if (!('serviceWorker' in navigator)) {
       setError('Service workers not supported');
       return;
     }
 
     try {
-      const reg = await navigator.serviceWorker.register('/sw-uv.js', {
-        scope: '/uv/service/',
+      const reg = await navigator.serviceWorker.register('/uv/sw.js', { scope: '/uv/service/' });
+
+      const sw = reg.installing || reg.waiting || reg.active;
+      if (sw && sw.state !== 'activated') {
+        await new Promise<void>((resolve, reject) => {
+          const t = setTimeout(() => reject(new Error('SW activation timeout')), 15000);
+          sw.addEventListener('statechange', () => {
+            if (sw.state === 'activated') { clearTimeout(t); resolve(); }
+            if (sw.state === 'redundant') { clearTimeout(t); reject(new Error('SW went redundant')); }
+          });
+        });
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Transport setup timed out')), 12000);
+        const s = document.createElement('script');
+        s.type = 'module';
+        s.src = '/proxy-init.js';
+
+        const onReady = () => { cleanup(); clearTimeout(timeout); resolve(); };
+        const onError = () => { cleanup(); clearTimeout(timeout); reject(new Error((window as any).__proxy_error || 'Transport failed')); };
+        const cleanup = () => {
+          window.removeEventListener('__proxy_ready', onReady);
+          window.removeEventListener('__proxy_error', onError);
+        };
+
+        window.addEventListener('__proxy_ready', onReady);
+        window.addEventListener('__proxy_error', onError);
+        document.head.appendChild(s);
       });
 
-      // Wait for the SW to become active
-      const sw = reg.active || reg.waiting || reg.installing;
-      if (sw) {
-        if (sw.state === 'activated') {
-          setSwReady(true);
-        } else {
-          await new Promise<void>((resolve) => {
-            sw.addEventListener('statechange', function check() {
-              if (sw.state === 'activated') {
-                sw.removeEventListener('statechange', check);
-                resolve();
-              }
-            });
-            // Also resolve if already activated
-            if (sw.state === 'activated') resolve();
-          });
-          setSwReady(true);
-        }
-      }
-
-      // Also check if there's already an active registration
-      if (reg.active) {
-        setSwReady(true);
-      }
+      setReady(true);
     } catch (err: any) {
-      console.error('SW registration error:', err);
       setError('Failed to initialize proxy: ' + err.message);
     }
   }
@@ -86,18 +93,12 @@ export default function ProxyPage() {
     setError('');
     setLoading(true);
 
-    // If SW isn't ready yet, try registering again and wait
-    if (!swReady) {
-      try {
-        await registerSW();
-      } catch {
-        setError('Proxy not ready. Please wait and try again.');
-        setLoading(false);
-        return;
-      }
+    if (!ready) {
+      setError('Proxy is still initializing. Please wait.');
+      setLoading(false);
+      return;
     }
 
-    // Normalize URL
     if (!isUrl(input)) {
       input = `https://www.google.com/search?q=${encodeURIComponent(input)}`;
     } else if (!/^https?:\/\//.test(input)) {
@@ -147,7 +148,6 @@ export default function ProxyPage() {
             <X size={14} />
           </button>
         </div>
-
         <iframe
           id="proxy-frame"
           src={proxyUrl}
@@ -160,12 +160,8 @@ export default function ProxyPage() {
 
   return (
     <div style={{
-      maxWidth: 520,
-      margin: '5rem auto 0',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: '1.25rem',
+      maxWidth: 520, margin: '5rem auto 0',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem',
     }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{
@@ -175,55 +171,38 @@ export default function ProxyPage() {
         }}>
           <Globe size={22} style={{ color: 'var(--accent)' }} />
         </div>
-        <h1 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.2rem' }}>Web Proxy</h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-          Browse any site freely
-        </p>
+        <h1 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.2rem' }}>Monoxide Proxy</h1>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Browse any site freely</p>
       </div>
 
-      {/* Engine toggle */}
       <div style={{
-        display: 'flex',
-        background: 'var(--bg-tertiary)',
-        borderRadius: 8,
-        padding: 2,
+        display: 'flex', background: 'var(--bg-tertiary)', borderRadius: 8, padding: 2,
         border: '1px solid var(--border)',
       }}>
-        {(['ultraviolet', 'scramjet'] as ProxyEngine[]).map((e) => (
+        {(['scramjet', 'ultraviolet'] as ProxyEngine[]).map((e) => (
           <button key={e} onClick={() => handleEngineChange(e)} style={{
-            padding: '5px 14px',
-            borderRadius: 6,
-            fontSize: '0.78rem',
+            padding: '5px 14px', borderRadius: 6, fontSize: '0.78rem',
             fontWeight: engine === e ? 600 : 400,
             background: engine === e ? 'var(--accent)' : 'transparent',
             color: engine === e ? 'var(--bg-primary)' : 'var(--text-muted)',
-            transition: 'all 0.15s',
-            cursor: 'pointer',
-            border: 'none',
+            transition: 'all 0.15s', cursor: 'pointer', border: 'none',
           }}>
             {e === 'ultraviolet' ? 'Ultraviolet' : 'Scramjet'}
           </button>
         ))}
       </div>
 
-      {/* URL input */}
       <form onSubmit={handleSubmit} style={{ width: '100%' }}>
         <div style={{ position: 'relative' }}>
           <Search size={15} style={{
             position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
             color: 'var(--text-muted)',
           }} />
-          <input
-            type="text"
-            placeholder="Search or enter URL..."
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            autoFocus
+          <input type="text" placeholder="Search or enter URL..." value={url}
+            onChange={(e) => setUrl(e.target.value)} autoFocus
             style={{
-              paddingLeft: 40, paddingRight: 48, height: 46,
-              fontSize: '0.9rem', borderRadius: 12,
-              background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-              width: '100%',
+              paddingLeft: 40, paddingRight: 48, height: 46, fontSize: '0.9rem', borderRadius: 12,
+              background: 'var(--bg-secondary)', border: '1px solid var(--border)', width: '100%',
             }}
           />
           <button type="submit" disabled={loading || !url.trim()} style={{
@@ -239,13 +218,11 @@ export default function ProxyPage() {
         </div>
       </form>
 
-      {error && (
-        <p style={{ color: '#ff4444', fontSize: '0.78rem' }}>{error}</p>
-      )}
+      {error && <p style={{ color: '#ff4444', fontSize: '0.78rem' }}>{error}</p>}
 
       <p style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
-        {swReady ? 'Proxy ready' : 'Initializing proxy...'}
-        {' · '}{engine === 'ultraviolet' ? 'Ultraviolet' : 'Scramjet'} + Bare Server
+        {ready ? 'Proxy ready' : 'Initializing proxy...'}
+        {' · '}{engine === 'scramjet' ? 'Scramjet' : 'Ultraviolet'} engine
       </p>
     </div>
   );

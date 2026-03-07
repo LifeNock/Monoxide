@@ -9,6 +9,7 @@ type Step = 1 | 2 | 3 | 4;
 
 export default function SignupPage() {
   const [step, setStep] = useState<Step>(1);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
@@ -53,7 +54,7 @@ export default function SignupPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: email || `${username}@monoxide.local`,
+        email,
         password, username, displayName, bio, pronouns, newsletter,
       }),
     });
@@ -65,32 +66,44 @@ export default function SignupPage() {
       return;
     }
 
-    if (avatarFile) {
-      const formData = new FormData();
-      formData.append('file', avatarFile);
-      const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
-      if (uploadRes.ok) {
-        const { url } = await uploadRes.json();
-        await fetch('/api/profile', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ avatarUrl: url }),
-        });
-      }
-    }
-
-    router.push('/proxy');
-    router.refresh();
+    // Show email confirmation message
+    setShowConfirmation(true);
+    setLoading(false);
   };
 
   const canProceed = () => {
     switch (step) {
       case 1: return displayName && username && username.length >= 3 && usernameAvailable === true;
-      case 2: return password && password === confirmPassword && password.length >= 6;
+      case 2: return email && password && password === confirmPassword && password.length >= 6;
       case 3: return true;
       case 4: return true;
     }
   };
+
+  if (showConfirmation) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', textAlign: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
+          <Image src="/MonoxideLogo.png" alt="Monoxide" width={48} height={48} />
+        </div>
+        <h1 className="wordmark" style={{
+          fontSize: '1.8rem',
+          background: 'linear-gradient(135deg, var(--gradient-1) 0%, var(--gradient-2) 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+        }}>
+          Check your email
+        </h1>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.5 }}>
+          We sent a confirmation link to <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>.
+          Click the link to activate your account.
+        </p>
+        <Link href="/login">
+          <button className="btn-primary" style={{ width: '100%' }}>Go to Sign In</button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -100,7 +113,7 @@ export default function SignupPage() {
         </div>
         <h1 className="wordmark" style={{
           fontSize: '1.8rem',
-          background: 'linear-gradient(135deg, #FFFFFF 0%, #666 100%)',
+          background: 'linear-gradient(135deg, var(--gradient-1) 0%, var(--gradient-2) 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
         }}>
@@ -168,9 +181,9 @@ export default function SignupPage() {
           </div>
           <div>
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 6 }}>
-              Email <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span>
+              Email
             </label>
-            <input type="email" placeholder="For account recovery" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input type="email" placeholder="your@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
         </div>
       )}

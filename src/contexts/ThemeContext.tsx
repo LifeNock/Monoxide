@@ -1,6 +1,7 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { fetchUserSettings } from '@/lib/settingsSync';
 
 export type Theme = 'carbon' | 'light' | 'midnight' | 'forest' | 'crimson';
 
@@ -14,23 +15,39 @@ const ThemeContext = createContext<ThemeContextType>({
   setTheme: () => {},
 });
 
+const validThemes: Theme[] = ['carbon', 'light', 'midnight', 'forest', 'crimson'];
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('carbon');
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('monoxide-theme') as Theme | null;
+      if (saved && validThemes.includes(saved)) return saved;
+    }
+    return 'carbon';
+  });
+
+  const applyTheme = useCallback((t: Theme) => {
+    document.documentElement.setAttribute('data-theme', t);
+  }, []);
 
   useEffect(() => {
-    const saved = localStorage.getItem('monoxide-theme') as Theme | null;
-    if (saved) setThemeState(saved);
+    applyTheme(theme);
+  }, [theme, applyTheme]);
+
+  useEffect(() => {
+    fetchUserSettings().then(data => {
+      if (data?.settings?.theme && validThemes.includes(data.settings.theme)) {
+        const dbTheme = data.settings.theme as Theme;
+        setThemeState(dbTheme);
+        localStorage.setItem('monoxide-theme', dbTheme);
+      }
+    });
   }, []);
 
   const setTheme = (t: Theme) => {
     setThemeState(t);
     localStorage.setItem('monoxide-theme', t);
-    document.documentElement.setAttribute('data-theme', t);
   };
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>

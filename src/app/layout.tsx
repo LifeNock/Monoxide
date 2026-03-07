@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Barlow, Rajdhani, Space_Grotesk, IBM_Plex_Sans } from 'next/font/google';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { FontProvider } from '@/contexts/FontContext';
+import CloakGuard from '@/components/CloakGuard';
 import './globals.css';
 
 const barlow = Barlow({
@@ -29,11 +30,10 @@ const ibmPlexSans = IBM_Plex_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Monoxide',
-  description: 'The all-in-one unblocked platform',
+  title: 'Google Docs',
+  description: 'Create and edit documents',
   icons: {
-    icon: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
+    icon: 'https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico',
   },
 };
 
@@ -50,6 +50,7 @@ export default function RootLayout({
       style={{ ['--font-body' as string]: "var(--font-barlow), sans-serif" }}
     >
       <body>
+        <CloakGuard />
         <ThemeProvider>
           <FontProvider>
             {children}

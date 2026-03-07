@@ -1,16 +1,33 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Palette, User, Shield, Users } from 'lucide-react';
 
-const settingsLinks = [
+const baseLinks = [
   { href: '/settings/appearance', label: 'Appearance', desc: 'Theme, font, and visual preferences', icon: Palette },
   { href: '/settings/profile', label: 'Profile', desc: 'Display name, avatar, bio, pronouns', icon: User },
   { href: '/settings/privacy', label: 'Privacy', desc: 'Panic key, cloaking, DM settings', icon: Shield },
+];
+
+const adminLinks = [
   { href: '/settings/admin/roles', label: 'Roles', desc: 'Create and manage user roles', icon: Users },
 ];
 
 export default function SettingsPage() {
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(r => r.json())
+      .then(data => {
+        if (data.isAdmin) setIsAdmin(true);
+      })
+      .catch(() => {});
+  }, []);
+
+  const settingsLinks = isAdmin ? [...baseLinks, ...adminLinks] : baseLinks;
+
   return (
     <div style={{ maxWidth: 560, margin: '0 auto' }}>
       <h1 className="animate-in" style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: '1.5rem' }}>Settings</h1>
