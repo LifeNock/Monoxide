@@ -9,10 +9,10 @@ import ParticleBackground from '@/components/ParticleBackground';
 import FunFact from '@/components/FunFact';
 
 const features = [
-  { icon: Globe, title: 'Web Tools', desc: 'Integrated browsing utilities', href: '/proxy' },
-  { icon: Gamepad2, title: 'Activities', desc: 'Interactive apps and more', href: '/games' },
-  { icon: MessageCircle, title: 'Discussions', desc: 'Real-time channels and groups', href: '/chat' },
-  { icon: Shield, title: 'Privacy', desc: 'Focus mode and privacy tools', href: '/settings/privacy' },
+  { icon: Globe, title: 'Web Tools', desc: 'Integrated browsing utilities' },
+  { icon: Gamepad2, title: 'Activities', desc: 'Interactive apps and more' },
+  { icon: MessageCircle, title: 'Discussions', desc: 'Real-time channels and groups' },
+  { icon: Shield, title: 'Privacy', desc: 'Focus mode and privacy tools' },
 ];
 
 export default function LandingPage() {
@@ -29,11 +29,7 @@ export default function LandingPage() {
   }, []);
 
   const handleGetStarted = () => {
-    if (isLoggedIn) {
-      router.push('/games');
-    } else {
-      router.push('/signup');
-    }
+    router.push(isLoggedIn ? '/games' : '/signup');
   };
 
   return (
@@ -56,16 +52,13 @@ export default function LandingPage() {
           marginBottom: '1.5rem',
         }}>
           <div style={{
-            width: 90,
-            height: 90,
-            borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%)',
             animation: 'float 4s ease-in-out infinite',
           }}>
-            <Image src="/MonoxideLogo.png" alt="Monoxide" width={64} height={64} priority />
+            <Image src="/monoxidelogo.png" alt="Monoxide" width={150} height={120} priority className="logo-adaptive" style={{ objectFit: 'contain' }} />
           </div>
         </div>
 
@@ -80,7 +73,7 @@ export default function LandingPage() {
           lineHeight: 1.1,
           marginBottom: '0.75rem',
         }}>
-          MONOXIDE
+          Monoxide
         </h1>
 
         {/* Tagline */}
@@ -139,34 +132,18 @@ export default function LandingPage() {
           padding: '0 1rem',
         }}>
           {features.map((f) => (
-            <Link key={f.title} href={f.href} style={{ textDecoration: 'none', color: 'inherit' }}>
-              <div className="glass" style={{
-                padding: '1.25rem',
-                borderRadius: 14,
-                cursor: 'pointer',
-                transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                position: 'relative',
-                overflow: 'hidden',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
-                  e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.3)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              >
-                <f.icon size={22} style={{ color: 'var(--text-secondary)', marginBottom: '0.75rem' }} />
-                <p style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.25rem' }}>{f.title}</p>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', lineHeight: 1.4 }}>{f.desc}</p>
-              </div>
-            </Link>
+            <div key={f.title} className="glass" style={{
+              padding: '1.25rem',
+              borderRadius: 14,
+              position: 'relative',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+            }}>
+              <f.icon size={22} style={{ color: 'var(--text-secondary)', marginBottom: '0.75rem' }} />
+              <p style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.25rem' }}>{f.title}</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', lineHeight: 1.4 }}>{f.desc}</p>
+            </div>
           ))}
         </div>
 

@@ -4,12 +4,13 @@ import { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Globe, Gamepad2, MessageCircle, Settings, User, LogOut } from 'lucide-react';
+import { Globe, Gamepad2, MessageCircle, Monitor, Settings, User, LogOut } from 'lucide-react';
 
 const navItems = [
   { href: '/proxy', label: 'Proxy', icon: Globe },
   { href: '/games', label: 'Games', icon: Gamepad2 },
   { href: '/chat', label: 'Chat', icon: MessageCircle },
+  { href: '/connect', label: 'Connect', icon: Monitor },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -53,25 +54,14 @@ export default function Sidebar() {
         borderBottom: '1px solid var(--border)',
         textDecoration: 'none',
       }}>
-        <div style={{
-          width: 42,
-          height: 42,
-          borderRadius: 11,
-          background: 'var(--logo-bg)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-        }}>
-          <Image src="/MonoxideLogo.png" alt="" width={32} height={32} />
-        </div>
+        <Image src="/monoxidelogo.png" alt="" width={48} height={38} className="logo-adaptive" style={{ objectFit: 'contain', flexShrink: 0 }} />
         <span className="wordmark" style={{
           fontSize: '1.15rem',
           background: 'linear-gradient(135deg, var(--gradient-1) 0%, var(--gradient-2) 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
         }}>
-          MONOXIDE
+          Monoxide
         </span>
       </Link>
 

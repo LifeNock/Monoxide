@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
-const protectedRoutes = ['/chat', '/settings', '/profile', '/games', '/proxy'];
+const protectedRoutes = ['/chat', '/settings', '/profile', '/games', '/proxy', '/connect'];
 
 export async function middleware(request: NextRequest) {
   const isProtected = protectedRoutes.some((route) =>

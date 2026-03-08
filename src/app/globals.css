@@ -22,6 +22,7 @@
   --gradient-1: #FFFFFF;
   --gradient-2: #666666;
   --logo-bg: #1A1A1A;
+  --logo-invert: 0;
 }
 
 [data-theme='light'] {
@@ -46,6 +47,7 @@
   --gradient-1: #000000;
   --gradient-2: #666666;
   --logo-bg: #E8E8E8;
+  --logo-invert: 1;
 }
 
 [data-theme='midnight'] {
@@ -70,6 +72,7 @@
   --gradient-1: #8BA4FF;
   --gradient-2: #4A5080;
   --logo-bg: #151838;
+  --logo-invert: 0;
 }
 
 [data-theme='forest'] {
@@ -94,6 +97,7 @@
   --gradient-1: #66DD88;
   --gradient-2: #3D6A3D;
   --logo-bg: #122212;
+  --logo-invert: 0;
 }
 
 [data-theme='crimson'] {
@@ -118,6 +122,13 @@
   --gradient-1: #FF6666;
   --gradient-2: #6A3D3D;
   --logo-bg: #221212;
+  --logo-invert: 0;
+}
+
+/* ===== Logo ===== */
+.logo-adaptive {
+  filter: invert(var(--logo-invert));
+  transition: filter 0.2s;
 }
 
 /* ===== Animations ===== */

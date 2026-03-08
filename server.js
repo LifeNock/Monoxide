@@ -5,6 +5,7 @@ const express = require('express');
 const { Server: SocketIOServer } = require('socket.io');
 const path = require('path');
 const { server: wisp } = require('@mercuryworkshop/wisp-js/server');
+const httpProxy = require('http-proxy');
 
 const { uvPath } = require('@titaniumnetwork-dev/ultraviolet');
 const { epoxyPath } = require('@mercuryworkshop/epoxy-transport');
@@ -19,6 +20,51 @@ const handle = app.getRequestHandler();
 // Simple in-memory cache for game HTML
 const gameCache = new Map();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+// Connect reverse proxy (WebSocket proxy for noVNC/websockify)
+const connectProxy = httpProxy.createProxyServer({ changeOrigin: true, ws: true, secure: false });
+const machineUrlCache = new Map(); // machineId -> { url, timestamp }
+const MACHINE_CACHE_TTL = 60 * 1000; // 1 min
+
+connectProxy.on('error', (err, req, res) => {
+  console.error('[connect-proxy] Proxy error:', err.message, err.code || '');
+  if (res && res.writeHead) res.writeHead(502).end('Proxy error');
+});
+
+connectProxy.on('open', () => {
+  console.log('[connect-proxy] WS connection opened to target');
+});
+
+connectProxy.on('close', (res, socket, head) => {
+  console.log('[connect-proxy] WS connection closed');
+});
+
+async function getMachineUrl(machineId) {
+  const cached = machineUrlCache.get(machineId);
+  if (cached && Date.now() - cached.timestamp < MACHINE_CACHE_TTL) {
+    return cached.url;
+  }
+  try {
+    const { createClient } = require('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    const { data } = await supabase
+      .from('machines')
+      .select('guacamole_url, user_id')
+      .eq('id', machineId)
+      .eq('paired', true)
+      .single();
+    if (data?.guacamole_url) {
+      machineUrlCache.set(machineId, { url: data.guacamole_url, userId: data.user_id, timestamp: Date.now() });
+      return data.guacamole_url;
+    }
+  } catch (err) {
+    console.error('Machine lookup error:', err.message);
+  }
+  return null;
+}
 
 app.prepare().then(() => {
   const expressApp = express();
@@ -119,6 +165,16 @@ app.prepare().then(() => {
     }
   });
 
+  // Connect proxy — WebSocket upgrade for noVNC handled in 'upgrade' event
+  // This HTTP route is only for health checks / fallback
+  expressApp.all('/connect-proxy/:machineId/*', async (req, res) => {
+    const { machineId } = req.params;
+    const targetUrl = await getMachineUrl(machineId);
+    if (!targetUrl) return res.status(404).send('Machine not found');
+    req.url = req.url.replace(`/connect-proxy/${machineId}`, '') || '/';
+    connectProxy.web(req, res, { target: targetUrl });
+  });
+
   // All other requests handled by Next.js
   expressApp.all('*', (req, res) => {
     return handle(req, res, parse(req.url, true));
@@ -140,17 +196,52 @@ app.prepare().then(() => {
   });
   require('./src/lib/chat/socket-server')(io);
 
-  // WebSocket upgrade — wisp handles proxy transport
-  server.on('upgrade', (req, socket, head) => {
-    if (req.url.endsWith('/wisp/')) {
-      wisp.routeRequest(req, socket, head);
-    } else if (parse(req.url, true).pathname?.startsWith('/socket.io/')) {
-      // Let socket.io handle its own upgrades
-      return;
-    } else {
-      socket.end();
+  // WebSocket upgrade — intercept before Next.js HMR handler sees it
+  // We override emit so custom WS routes are handled first; everything else
+  // (socket.io, Next.js HMR) passes through normally via the real emit.
+  const _origEmit = server.emit.bind(server);
+  server.emit = function (event, ...args) {
+    if (event === 'upgrade') {
+      const [req, socket, head] = args;
+      const pathname = parse(req.url, true).pathname || '';
+
+      if (req.url.endsWith('/wisp/')) {
+        wisp.routeRequest(req, socket, head);
+        return true; // handled, don't pass to other listeners
+      }
+
+      if (pathname.startsWith('/connect-proxy/')) {
+        const parts = pathname.split('/');
+        const machineId = parts[2];
+        console.log(`[connect-proxy] WS upgrade for machine: ${machineId}, path: ${pathname}`);
+        if (machineId) {
+          getMachineUrl(machineId).then(targetUrl => {
+            if (targetUrl) {
+              // Convert https:// to wss:// for WebSocket proxy target
+              const wsTarget = targetUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
+              console.log(`[connect-proxy] Proxying WS to: ${wsTarget}`);
+              socket.on('error', (err) => console.error('[connect-proxy] Socket error:', err.message));
+              socket.on('close', () => console.log('[connect-proxy] Socket closed'));
+              connectProxy.ws(req, socket, head, { target: wsTarget });
+            } else {
+              console.log(`[connect-proxy] No URL found for machine ${machineId}`);
+              socket.end();
+            }
+          }).catch(err => {
+            console.error(`[connect-proxy] Error looking up machine ${machineId}:`, err.message);
+            socket.end();
+          });
+        } else {
+          console.log('[connect-proxy] No machineId in path');
+          socket.end();
+        }
+        return true; // handled
+      }
+
+      // socket.io and Next.js HMR — pass through
     }
-  });
+    return _origEmit(event, ...args);
+  };
 
   server.listen(port, () => {
     console.log(`> Monoxide running at http://localhost:${port}`);

@@ -76,7 +76,7 @@ function LoginForm() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-          <Image src="/MonoxideLogo.png" alt="Monoxide" width={48} height={48} />
+          <Image src="/monoxidelogo.png" alt="Monoxide" width={75} height={60} className="logo-adaptive" style={{ objectFit: 'contain' }} />
         </div>
         <h1 className="wordmark" style={{
           fontSize: '1.8rem',

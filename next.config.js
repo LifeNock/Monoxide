@@ -6,6 +6,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'img.laughingemoji.net',
       },
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+      },
     ],
   },
 };
