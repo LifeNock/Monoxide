@@ -317,7 +317,7 @@ export default function ConnectPage() {
       <div className="animate-in" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
         <Image src="/monoxidelogo.png" alt="" width={48} height={38} className="logo-adaptive" style={{ objectFit: 'contain' }} />
         <h1 style={{ fontSize: '1.3rem', fontWeight: 700, flex: 1 }}>
-          Monoxide <span style={{ color: 'var(--text-secondary)' }}>Connect</span>
+          Monoxide<sup style={{ fontSize: '0.5em', verticalAlign: 'super', opacity: 0.5 }}>™</sup> <span style={{ color: 'var(--text-secondary)' }}>Connect</span>
         </h1>
         <button
           onClick={refreshMachines}

@@ -9,6 +9,7 @@ const themes: { id: Theme; name: string; color: string; bg: string }[] = [
   { id: 'midnight', name: 'Midnight', color: '#5B8DEF', bg: '#0B1026' },
   { id: 'forest', name: 'Forest', color: '#4CAF50', bg: '#0D1A0D' },
   { id: 'crimson', name: 'Crimson', color: '#EF4444', bg: '#1A0D0D' },
+  { id: 'christmas', name: 'Christmas', color: '#d42a2a', bg: '#0a0f0a' },
 ];
 
 const fonts: { id: FontOption; name: string }[] = [

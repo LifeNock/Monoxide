@@ -1,5 +1,5 @@
 module.exports = function setupSocketHandlers(io) {
-  const typingUsers = new Map(); // channelId -> Set of usernames
+  const typingUsers = new Map(); // channelId -> Map<username, { username, avatarUrl }>
 
   io.on('connection', (socket) => {
     socket.on('join-channel', (channelId) => {
@@ -11,18 +11,18 @@ module.exports = function setupSocketHandlers(io) {
     });
 
     socket.on('send-message', (msg) => {
-      // Broadcast the full message object to everyone in the channel (including sender)
       if (msg && msg.channel_id) {
         io.to(`channel:${msg.channel_id}`).emit('new-message', msg);
       }
     });
 
-    socket.on('typing-start', ({ channelId, username }) => {
-      if (!typingUsers.has(channelId)) typingUsers.set(channelId, new Set());
-      typingUsers.get(channelId).add(username);
+    socket.on('typing-start', ({ channelId, username, avatarUrl }) => {
+      if (!typingUsers.has(channelId)) typingUsers.set(channelId, new Map());
+      typingUsers.get(channelId).set(username, { username, avatarUrl: avatarUrl || '' });
+      socket.data = { ...socket.data, username };
       socket.to(`channel:${channelId}`).emit('typing-update', {
         channelId,
-        users: Array.from(typingUsers.get(channelId)),
+        users: Array.from(typingUsers.get(channelId).values()),
       });
     });
 
@@ -31,8 +31,14 @@ module.exports = function setupSocketHandlers(io) {
         typingUsers.get(channelId).delete(username);
         socket.to(`channel:${channelId}`).emit('typing-update', {
           channelId,
-          users: Array.from(typingUsers.get(channelId)),
+          users: Array.from(typingUsers.get(channelId).values()),
         });
+      }
+    });
+
+    socket.on('delete-message', (data) => {
+      if (data && data.channelId) {
+        io.to(`channel:${data.channelId}`).emit('message-deleted', { messageId: data.messageId });
       }
     });
 
@@ -46,7 +52,7 @@ module.exports = function setupSocketHandlers(io) {
 
     socket.on('disconnect', () => {
       for (const [, users] of typingUsers) {
-        users.delete(socket.data?.username);
+        if (socket.data?.username) users.delete(socket.data.username);
       }
     });
   });

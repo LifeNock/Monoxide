@@ -1,6 +1,7 @@
 'use client';
 
 import Sidebar from '@/components/Sidebar';
+import FingerprintCollector from '@/components/FingerprintCollector';
 import { usePanicKey, getIsPanicking } from '@/hooks/usePanicKey';
 import { useEffect } from 'react';
 
@@ -37,9 +38,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <FingerprintCollector />
       <Sidebar />
       <div style={{ marginLeft: 220, flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <main style={{ flex: 1, padding: '1.5rem', overflow: 'auto', minWidth: 0 }}>
+        <main style={{ flex: 1, padding: '1.5rem', overflowX: 'hidden', minWidth: 0 }}>
           {children}
         </main>
       </div>

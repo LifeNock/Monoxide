@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Palette, User, Shield, Users } from 'lucide-react';
+import { Palette, User, Shield, Users, Gavel } from 'lucide-react';
 
 const baseLinks = [
   { href: '/settings/appearance', label: 'Appearance', desc: 'Theme, font, and visual preferences', icon: Palette },
@@ -10,12 +10,9 @@ const baseLinks = [
   { href: '/settings/privacy', label: 'Privacy', desc: 'Panic key, cloaking, DM settings', icon: Shield },
 ];
 
-const adminLinks = [
-  { href: '/settings/admin/roles', label: 'Roles', desc: 'Create and manage user roles', icon: Users },
-];
-
 export default function SettingsPage() {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [permissions, setPermissions] = useState<string[]>([]);
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -24,9 +21,26 @@ export default function SettingsPage() {
         if (data.isAdmin) setIsAdmin(true);
       })
       .catch(() => {});
+    fetch('/api/permissions')
+      .then(r => r.json())
+      .then(data => {
+        if (data.permissions) setPermissions(data.permissions);
+      })
+      .catch(() => {});
   }, []);
 
-  const settingsLinks = isAdmin ? [...baseLinks, ...adminLinks] : baseLinks;
+  const canManageRoles = isAdmin || permissions.includes('manage_roles');
+  const canModerate = isAdmin || permissions.includes('ban_users') || permissions.includes('kick_users');
+
+  const adminLinks = [];
+  if (canManageRoles) {
+    adminLinks.push({ href: '/settings/admin/roles', label: 'Roles', desc: 'Create and manage user roles', icon: Users });
+  }
+  if (canModerate) {
+    adminLinks.push({ href: '/settings/admin/moderation', label: 'Moderation', desc: 'Bans, timeouts, and user management', icon: Gavel });
+  }
+
+  const settingsLinks = [...baseLinks, ...adminLinks];
 
   return (
     <div style={{ maxWidth: 560, margin: '0 auto' }}>

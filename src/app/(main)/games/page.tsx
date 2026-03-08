@@ -196,6 +196,10 @@ export default function GamesPage() {
 
   return (
     <div style={{ overflow: 'hidden', maxWidth: '100%' }}>
+      <div style={{ marginBottom: '1rem' }}>
+        <h1 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Monoxide<sup style={{ fontSize: '0.5em', verticalAlign: 'super', opacity: 0.5 }}>™</sup> <span style={{ color: 'var(--text-secondary)' }}>Games</span></h1>
+      </div>
+
       {/* Search */}
       <div style={{ position: 'relative', maxWidth: 340, marginBottom: '0.75rem' }}>
         <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -205,10 +209,10 @@ export default function GamesPage() {
       </div>
 
       {/* Categories */}
-      <div style={{
+      <div className="scroll-x" style={{
         display: 'flex', gap: '3px', marginBottom: '1rem',
         overflowX: 'auto', paddingBottom: '0.25rem',
-        scrollbarWidth: 'thin',
+        scrollbarWidth: 'none',
       }}>
         {activeCategories.map((cat) => (
           <button key={cat} onClick={() => setCategory(cat)} style={{

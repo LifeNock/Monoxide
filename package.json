@@ -11,6 +11,7 @@
   "dependencies": {
     "@emoji-mart/data": "^1.2.1",
     "@emoji-mart/react": "^1.1.1",
+    "@fingerprintjs/fingerprintjs": "^5.1.0",
     "@mercuryworkshop/bare-as-module3": "^2.2.5",
     "@mercuryworkshop/bare-mux": "^2.0.6",
     "@mercuryworkshop/epoxy-transport": "^2.1.5",
@@ -26,6 +27,7 @@
     "better-sqlite3": "^12.6.2",
     "cookie": "^1.1.1",
     "emoji-mart": "^5.6.0",
+    "emoji-regex": "^10.6.0",
     "express": "^4.21.1",
     "http-proxy": "^1.18.1",
     "jsonwebtoken": "^9.0.3",

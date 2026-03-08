@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { fetchUserSettings } from '@/lib/settingsSync';
 
-export type Theme = 'carbon' | 'light' | 'midnight' | 'forest' | 'crimson';
+export type Theme = 'carbon' | 'light' | 'midnight' | 'forest' | 'crimson' | 'christmas';
 
 interface ThemeContextType {
   theme: Theme;
@@ -15,7 +15,7 @@ const ThemeContext = createContext<ThemeContextType>({
   setTheme: () => {},
 });
 
-const validThemes: Theme[] = ['carbon', 'light', 'midnight', 'forest', 'crimson'];
+const validThemes: Theme[] = ['carbon', 'light', 'midnight', 'forest', 'crimson', 'christmas'];
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {

@@ -23,6 +23,8 @@
   --gradient-2: #666666;
   --logo-bg: #1A1A1A;
   --logo-invert: 0;
+  --bubble-bg: rgba(255, 255, 255, 0.025);
+  --bubble-border: rgba(255, 255, 255, 0.06);
 }
 
 [data-theme='light'] {
@@ -48,6 +50,8 @@
   --gradient-2: #666666;
   --logo-bg: #E8E8E8;
   --logo-invert: 1;
+  --bubble-bg: rgba(0, 0, 0, 0.03);
+  --bubble-border: rgba(0, 0, 0, 0.08);
 }
 
 [data-theme='midnight'] {
@@ -73,6 +77,8 @@
   --gradient-2: #4A5080;
   --logo-bg: #151838;
   --logo-invert: 0;
+  --bubble-bg: rgba(139, 164, 255, 0.03);
+  --bubble-border: rgba(139, 164, 255, 0.08);
 }
 
 [data-theme='forest'] {
@@ -98,6 +104,8 @@
   --gradient-2: #3D6A3D;
   --logo-bg: #122212;
   --logo-invert: 0;
+  --bubble-bg: rgba(102, 221, 136, 0.03);
+  --bubble-border: rgba(102, 221, 136, 0.08);
 }
 
 [data-theme='crimson'] {
@@ -123,6 +131,36 @@
   --gradient-2: #6A3D3D;
   --logo-bg: #221212;
   --logo-invert: 0;
+  --bubble-bg: rgba(255, 102, 102, 0.03);
+  --bubble-border: rgba(255, 102, 102, 0.08);
+}
+
+[data-theme='christmas'] {
+  --bg-primary: #0a0f0a;
+  --bg-secondary: #0e150e;
+  --bg-tertiary: #142014;
+  --bg-hover: #1a2b1a;
+  --text-primary: #f0f5f0;
+  --text-secondary: #8aaa8a;
+  --text-muted: #4a6a4a;
+  --accent: #d42a2a;
+  --accent-hover: #b82222;
+  --accent-muted: rgba(212, 42, 42, 0.12);
+  --border: #1a2818;
+  --danger: #ff5555;
+  --success: #44cc66;
+  --input-bg: #0c120c;
+  --sidebar-bg: #060a06;
+  --scrollbar-track: #0c120c;
+  --scrollbar-thumb: #1a2b1a;
+  --glow: rgba(212, 42, 42, 0.06);
+  --gradient-1: #d42a2a;
+  --gradient-2: #2d8a4e;
+  --logo-bg: #142014;
+  --logo-invert: 0;
+  --bubble-bg: rgba(212, 42, 42, 0.04);
+  --bubble-border: rgba(212, 42, 42, 0.1);
+  color-scheme: dark;
 }
 
 /* ===== Logo ===== */
@@ -255,7 +293,7 @@ a:hover {
 /* ===== Scrollbar ===== */
 ::-webkit-scrollbar {
   width: 6px;
-  height: 6px;
+  height: 0px;
 }
 
 ::-webkit-scrollbar-track {
@@ -269,6 +307,11 @@ a:hover {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+}
+
+/* Horizontal scrollbar only for elements that explicitly need it */
+.scroll-x::-webkit-scrollbar {
+  height: 4px;
 }
 
 .wordmark {
@@ -380,4 +423,11 @@ button:active {
 [data-theme='light'] .glass {
   background: rgba(255, 255, 255, 0.7);
   border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* Hide Next.js dev indicator */
+[data-nextjs-dialog-overlay],
+nextjs-portal,
+[data-nextjs-toast] {
+  display: none !important;
 }

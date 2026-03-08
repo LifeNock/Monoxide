@@ -103,7 +103,7 @@ export default function UserPopup({
       <div
         onClick={onClose}
         style={{
-          position: 'fixed', inset: 0, zIndex: 600,
+          position: 'fixed', inset: 0, zIndex: 10000,
           background: 'rgba(0,0,0,0.6)',
           backdropFilter: 'blur(8px)',
           WebkitBackdropFilter: 'blur(8px)',
@@ -176,7 +176,7 @@ export default function UserPopup({
             {profile?.bio && (
               <p style={{
                 color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.75rem',
-                lineHeight: 1.5,
+                lineHeight: 1.5, whiteSpace: 'pre-wrap',
               }}>
                 {profile.bio}
               </p>
@@ -260,12 +260,12 @@ export default function UserPopup({
 
   return (
     <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 500 }} />
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9998 }} />
 
       <div
         ref={cardRef}
         style={{
-          position: 'fixed', left: adjusted.x, top: adjusted.y, zIndex: 501,
+          position: 'fixed', left: adjusted.x, top: adjusted.y, zIndex: 9999,
           width: 280, background: 'var(--bg-secondary)',
           border: '1px solid var(--border)', borderRadius: 12,
           overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
@@ -316,7 +316,7 @@ export default function UserPopup({
           {profile?.bio && (
             <p style={{
               color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.35rem',
-              lineHeight: 1.35,
+              lineHeight: 1.35, whiteSpace: 'pre-wrap',
               display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
               overflow: 'hidden',
             }}>

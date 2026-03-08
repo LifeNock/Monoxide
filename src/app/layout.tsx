@@ -3,6 +3,7 @@ import { Barlow, Rajdhani, Space_Grotesk, IBM_Plex_Sans } from 'next/font/google
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { FontProvider } from '@/contexts/FontContext';
 import CloakGuard from '@/components/CloakGuard';
+import ThemeEffects from '@/components/ThemeEffects';
 import './globals.css';
 
 const barlow = Barlow({
@@ -53,6 +54,7 @@ export default function RootLayout({
         <CloakGuard />
         <ThemeProvider>
           <FontProvider>
+            <ThemeEffects />
             {children}
           </FontProvider>
         </ThemeProvider>

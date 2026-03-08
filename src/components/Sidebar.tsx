@@ -61,7 +61,7 @@ export default function Sidebar() {
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
         }}>
-          Monoxide
+          Monoxide<sup style={{ fontSize: '0.5em', verticalAlign: 'super', opacity: 0.6 }}>™</sup>
         </span>
       </Link>
 
@@ -128,6 +128,16 @@ export default function Sidebar() {
         >
           <LogOut size={16} /> Log out
         </button>
+        <div style={{
+          padding: '0.5rem 0.75rem 0.25rem',
+          fontSize: '0.62rem',
+          color: 'var(--text-muted)',
+          opacity: 0.5,
+          textAlign: 'center',
+          lineHeight: 1.4,
+        }}>
+          &copy; 2026 Monoxide<sup style={{ fontSize: '0.55em' }}>™</sup>. All Rights Reserved.
+        </div>
       </div>
     </aside>
   );

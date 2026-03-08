@@ -171,7 +171,7 @@ export default function ProxyPage() {
         }}>
           <Globe size={22} style={{ color: 'var(--accent)' }} />
         </div>
-        <h1 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.2rem' }}>Monoxide Proxy</h1>
+        <h1 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.2rem' }}>Monoxide<sup style={{ fontSize: '0.5em', verticalAlign: 'super', opacity: 0.5 }}>™</sup> <span style={{ color: 'var(--text-secondary)' }}>Proxy</span></h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Browse any site freely</p>
       </div>
 

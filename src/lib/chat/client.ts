@@ -1,5 +1,11 @@
 import { io, Socket } from 'socket.io-client';
 
+export interface ReplyPreview {
+  content: string;
+  display_name: string;
+  username: string;
+}
+
 export interface Message {
   id: string;
   channel_id: string;
@@ -7,6 +13,7 @@ export interface Message {
   content: string;
   image_url: string | null;
   reply_to: string | null;
+  reply_to_message: ReplyPreview | null;
   is_deleted: number;
   created_at: string;
   username: string;
@@ -17,8 +24,13 @@ export interface Message {
   role_color: string | null;
 }
 
+export interface TypingUser {
+  username: string;
+  avatarUrl: string;
+}
+
 type MessageCallback = (msg: Message) => void;
-type TypingCallback = (users: string[]) => void;
+type TypingCallback = (users: TypingUser[]) => void;
 
 class ChatClient {
   private socket: Socket | null = null;
@@ -52,7 +64,6 @@ class ChatClient {
 
     const msg = await res.json();
 
-    // Broadcast via socket
     if (this.socket) {
       this.socket.emit('send-message', msg);
     }
@@ -60,12 +71,29 @@ class ChatClient {
     return msg;
   }
 
-  async deleteMessage(messageId: string) {
-    await fetch('/api/messages', {
+  async deleteMessage(messageId: string, channelId: string): Promise<boolean> {
+    const res = await fetch('/api/messages', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messageId }),
     });
+
+    if (!res.ok) return false;
+
+    const data = await res.json();
+
+    // Broadcast delete via socket
+    if (this.socket && data.ok) {
+      this.socket.emit('delete-message', { messageId, channelId });
+    }
+
+    return data.ok;
+  }
+
+  async getPermissions(): Promise<string[]> {
+    const res = await fetch('/api/permissions');
+    const data = await res.json();
+    return data.permissions || [];
   }
 
   subscribeToChannel(channelId: string, onMessage: MessageCallback) {
@@ -79,23 +107,76 @@ class ChatClient {
     });
   }
 
+  onMessageDeleted(callback: (data: { messageId: string }) => void) {
+    if (!this.socket) return;
+    this.socket.on('message-deleted', callback);
+  }
+
+  offMessageDeleted() {
+    if (!this.socket) return;
+    this.socket.off('message-deleted');
+  }
+
   unsubscribeFromChannel(channelId: string) {
     if (!this.socket) return;
     this.socket.emit('leave-channel', channelId);
     this.socket.off('new-message');
     this.socket.off('typing-update');
+    this.socket.off('reaction-added');
+    this.socket.off('reaction-removed');
+    this.socket.off('message-deleted');
   }
 
   onTyping(channelId: string, callback: TypingCallback) {
     if (!this.socket) return;
-    this.socket.on('typing-update', (data: { channelId: string; users: string[] }) => {
+    this.socket.on('typing-update', (data: { channelId: string; users: TypingUser[] }) => {
       if (data.channelId === channelId) callback(data.users);
     });
   }
 
-  emitTyping(channelId: string, username: string, isTyping: boolean) {
+  emitTyping(channelId: string, username: string, isTyping: boolean, avatarUrl?: string) {
     if (!this.socket) return;
-    this.socket.emit(isTyping ? 'typing-start' : 'typing-stop', { channelId, username });
+    if (isTyping) {
+      this.socket.emit('typing-start', { channelId, username, avatarUrl });
+    } else {
+      this.socket.emit('typing-stop', { channelId, username });
+    }
+  }
+
+  async getReactions(messageId: string): Promise<{ emoji_id: string; count: number; user_reacted: boolean }[]> {
+    const res = await fetch(`/api/reactions?messageId=${messageId}`);
+    return res.json();
+  }
+
+  async toggleReaction(messageId: string, emoji: string, channelId: string): Promise<{ action: string; emoji: string }> {
+    const res = await fetch('/api/reactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageId, emoji }),
+    });
+    const result = await res.json();
+
+    if (this.socket) {
+      this.socket.emit(result.action === 'added' ? 'add-reaction' : 'remove-reaction', {
+        channelId,
+        messageId,
+        emoji,
+      });
+    }
+
+    return result;
+  }
+
+  onReactionUpdate(callback: (data: { messageId: string; emoji: string }) => void) {
+    if (!this.socket) return;
+    this.socket.on('reaction-added', callback);
+    this.socket.on('reaction-removed', callback);
+  }
+
+  offReactionUpdate() {
+    if (!this.socket) return;
+    this.socket.off('reaction-added');
+    this.socket.off('reaction-removed');
   }
 
   disconnect() {

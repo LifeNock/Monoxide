@@ -73,7 +73,7 @@ export default function LandingPage() {
           lineHeight: 1.1,
           marginBottom: '0.75rem',
         }}>
-          Monoxide
+          Monoxide<sup style={{ fontSize: '0.35em', verticalAlign: 'super', opacity: 0.5 }}>™</sup>
         </h1>
 
         {/* Tagline */}
