@@ -30,7 +30,7 @@ export default function SettingsPage() {
   }, []);
 
   const canManageRoles = isAdmin || permissions.includes('manage_roles');
-  const canModerate = isAdmin || permissions.includes('ban_users') || permissions.includes('kick_users');
+  const canModerate = isAdmin || permissions.includes('ban_users') || permissions.includes('kick_users') || permissions.includes('manage_word_filter');
 
   const adminLinks = [];
   if (canManageRoles) {

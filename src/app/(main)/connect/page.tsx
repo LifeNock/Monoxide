@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { Monitor, Plus, Trash2, Copy, Check, ChevronDown, ChevronUp, Wifi, WifiOff, ArrowLeft, Maximize2, Minimize2, RefreshCw } from 'lucide-react';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface Machine {
   id: string;
@@ -36,6 +37,8 @@ export default function ConnectPage() {
   const [dockerOs, setDockerOs] = useState<'windows' | 'mac' | 'ubuntu' | 'fedora' | 'arch' | 'opensuse'>('windows');
   const [activeMonitor, setActiveMonitor] = useState<1 | 2>(1);
   const [refreshing, setRefreshing] = useState(false);
+  const { theme } = useTheme();
+  const logoSrc = theme === 'christmas' ? '/christmasmonoxidelogo.png' : '/monoxidelogo.png';
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const sessionContainerRef = useRef<HTMLDivElement>(null);
   const rfbRef = useRef<any>(null);
@@ -315,7 +318,7 @@ export default function ConnectPage() {
     <div style={{ maxWidth: 700, margin: '0 auto' }}>
       {/* Header */}
       <div className="animate-in" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
-        <Image src="/monoxidelogo.png" alt="" width={48} height={38} className="logo-adaptive" style={{ objectFit: 'contain' }} />
+        <Image src={logoSrc} alt="" width={48} height={38} className={theme === 'christmas' ? '' : 'logo-adaptive'} style={{ objectFit: 'contain' }} />
         <h1 style={{ fontSize: '1.3rem', fontWeight: 700, flex: 1 }}>
           Monoxide<sup style={{ fontSize: '0.5em', verticalAlign: 'super', opacity: 0.5 }}>™</sup> <span style={{ color: 'var(--text-secondary)' }}>Connect</span>
         </h1>
@@ -691,6 +694,20 @@ sudo systemctl enable --now x0vncserver`}
                           {copiedToken === machine.pairing_token ? <Check size={14} style={{ color: 'var(--success)' }} /> : <Copy size={14} />}
                         </button>
                       </div>
+                      <div style={{ display: 'flex', gap: '4px', marginBottom: '0.3rem' }}>
+                        <button onClick={() => setDockerOs('windows')} style={{
+                          padding: '2px 8px', fontSize: '0.7rem', borderRadius: 4, cursor: 'pointer', transition: 'all 0.15s',
+                          background: dockerOs === 'windows' ? 'var(--accent)' : 'var(--bg-primary)',
+                          color: dockerOs === 'windows' ? 'var(--bg-primary)' : 'var(--text-muted)',
+                          border: `1px solid ${dockerOs === 'windows' ? 'var(--accent)' : 'var(--border)'}`,
+                        }}>PowerShell</button>
+                        <button onClick={() => setDockerOs('ubuntu')} style={{
+                          padding: '2px 8px', fontSize: '0.7rem', borderRadius: 4, cursor: 'pointer', transition: 'all 0.15s',
+                          background: dockerOs !== 'windows' ? 'var(--accent)' : 'var(--bg-primary)',
+                          color: dockerOs !== 'windows' ? 'var(--bg-primary)' : 'var(--text-muted)',
+                          border: `1px solid ${dockerOs !== 'windows' ? 'var(--accent)' : 'var(--border)'}`,
+                        }}>Bash</button>
+                      </div>
                       <div style={{
                         background: 'var(--bg-primary)',
                         border: '1px solid var(--border)',
@@ -703,7 +720,9 @@ sudo systemctl enable --now x0vncserver`}
                         color: 'var(--text-secondary)',
                         lineHeight: 1.5,
                       }}>
-{`curl -fsSL ${typeof window !== 'undefined' ? window.location.origin : ''}/connect-setup.sh | bash -s -- \\
+{dockerOs === 'windows'
+  ? `powershell -ExecutionPolicy Bypass -Command "& { $s = irm '${typeof window !== 'undefined' ? window.location.origin : ''}/connect-setup.ps1'; $s | Out-File setup.ps1; .\\setup.ps1 -Token '${machine.pairing_token}' -Server '${typeof window !== 'undefined' ? window.location.origin : ''}'; Remove-Item setup.ps1 }"`
+  : `curl -fsSL ${typeof window !== 'undefined' ? window.location.origin : ''}/connect-setup.sh | bash -s -- \\
   --token ${machine.pairing_token} \\
   --server ${typeof window !== 'undefined' ? window.location.origin : ''}`}
                       </div>

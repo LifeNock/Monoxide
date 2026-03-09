@@ -4,10 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useTheme } from '@/contexts/ThemeContext';
 
 type Step = 1 | 2 | 3 | 4;
 
 export default function SignupPage() {
+  const { theme } = useTheme();
+  const logoSrc = theme === 'christmas' ? '/christmasmonoxidelogo.png' : '/monoxidelogo.png';
   const [step, setStep] = useState<Step>(1);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [username, setUsername] = useState('');
@@ -84,7 +87,7 @@ export default function SignupPage() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
-          <Image src="/monoxidelogo.png" alt="Monoxide" width={75} height={60} className="logo-adaptive" style={{ objectFit: 'contain' }} />
+          <Image src={logoSrc} alt="Monoxide" width={75} height={60} className={theme === 'christmas' ? '' : 'logo-adaptive'} style={{ objectFit: 'contain' }} />
         </div>
         <h1 className="wordmark" style={{
           fontSize: '1.8rem',
@@ -109,7 +112,7 @@ export default function SignupPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-          <Image src="/monoxidelogo.png" alt="Monoxide" width={75} height={60} className="logo-adaptive" style={{ objectFit: 'contain' }} />
+          <Image src={logoSrc} alt="Monoxide" width={75} height={60} className={theme === 'christmas' ? '' : 'logo-adaptive'} style={{ objectFit: 'contain' }} />
         </div>
         <h1 className="wordmark" style={{
           fontSize: '1.8rem',

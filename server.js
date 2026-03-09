@@ -196,6 +196,9 @@ app.prepare().then(() => {
   });
   require('./src/lib/chat/socket-server')(io);
 
+  // Expose io globally so API routes can access online users
+  global.__io = io;
+
   // WebSocket upgrade — intercept before Next.js HMR handler sees it
   // We override emit so custom WS routes are handled first; everything else
   // (socket.io, Next.js HMR) passes through normally via the real emit.

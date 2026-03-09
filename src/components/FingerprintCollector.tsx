@@ -11,8 +11,9 @@ export default function FingerprintCollector() {
         const result = await fp.get();
         const visitorId = result.visitorId;
 
-        // Only send if we have a valid fingerprint
+        // Store locally for socket identification
         if (visitorId) {
+          localStorage.setItem('monoxide-hwid', visitorId);
           await fetch('/api/fingerprint', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

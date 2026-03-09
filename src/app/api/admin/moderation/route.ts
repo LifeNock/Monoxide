@@ -45,8 +45,9 @@ export async function POST(request: NextRequest) {
 
   const { username, banType, reason, duration, hwid, ipAddress } = await request.json();
 
-  if (!username || !banType) {
-    return NextResponse.json({ error: 'Username and ban type required' }, { status: 400 });
+  const validBanTypes = ['permanent', 'temporary', 'hwid', 'ip', 'poison'];
+  if (!username || !banType || !validBanTypes.includes(banType)) {
+    return NextResponse.json({ error: 'Username and valid ban type required' }, { status: 400 });
   }
 
   // Look up the target user (include fingerprint for HWID bans)

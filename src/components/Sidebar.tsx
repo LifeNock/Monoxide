@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { Globe, Gamepad2, MessageCircle, Monitor, Settings, User, LogOut } from 'lucide-react';
+import { useTheme } from '@/contexts/ThemeContext';
+import { getChatClient } from '@/lib/chat/client';
 
 const navItems = [
   { href: '/proxy', label: 'Proxy', icon: Globe },
@@ -16,12 +18,38 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
+  const { theme } = useTheme();
   const [navigating, setNavigating] = useState<string | null>(null);
+  const [mentionCount, setMentionCount] = useState(0);
+  const logoSrc = theme === 'christmas' ? '/christmasmonoxidelogo.png' : '/monoxidelogo.png';
 
   useEffect(() => {
     setNavigating(null);
   }, [pathname]);
+
+  // Poll mention count
+  useEffect(() => {
+    const fetchMentions = async () => {
+      try {
+        const client = getChatClient();
+        const count = await client.getMentionCount();
+        setMentionCount(count);
+      } catch {}
+    };
+    fetchMentions();
+    const interval = setInterval(fetchMentions, 10000);
+
+    // Listen for real-time mention notifications
+    const client = getChatClient();
+    client.onMention(() => {
+      setMentionCount(c => c + 1);
+    });
+
+    return () => {
+      clearInterval(interval);
+      client.offMention();
+    };
+  }, []);
 
   const handleNav = (href: string) => {
     if (pathname.startsWith(href)) return;
@@ -30,8 +58,7 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/');
-    router.refresh();
+    window.location.href = '/login';
   };
 
   return (
@@ -49,12 +76,12 @@ export default function Sidebar() {
       <Link href="/" style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '0.75rem',
+        gap: '0.4rem',
         padding: '1.25rem 1rem',
         borderBottom: '1px solid var(--border)',
         textDecoration: 'none',
       }}>
-        <Image src="/monoxidelogo.png" alt="" width={48} height={38} className="logo-adaptive" style={{ objectFit: 'contain', flexShrink: 0 }} />
+        <Image src={logoSrc} alt="" width={48} height={38} className={theme === 'christmas' ? '' : 'logo-adaptive'} style={{ objectFit: 'contain', flexShrink: 0 }} />
         <span className="wordmark" style={{
           fontSize: '1.15rem',
           background: 'linear-gradient(135deg, var(--gradient-1) 0%, var(--gradient-2) 100%)',
@@ -69,6 +96,7 @@ export default function Sidebar() {
         {navItems.map(({ href, label, icon: Icon }, i) => {
           const active = pathname.startsWith(href);
           const loading = navigating === href;
+          const showBadge = href === '/chat' && mentionCount > 0;
           return (
             <Link key={href} href={href} onClick={() => handleNav(href)} className={`animate-in stagger-${i + 1}`} style={{
               display: 'flex',
@@ -89,6 +117,25 @@ export default function Sidebar() {
             >
               <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
               {label}
+              {showBadge && (
+                <span style={{
+                  marginLeft: 'auto',
+                  background: '#ef4444',
+                  color: '#fff',
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  borderRadius: 10,
+                  minWidth: 18,
+                  height: 18,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 5px',
+                  lineHeight: 1,
+                }}>
+                  {mentionCount > 99 ? '99+' : mentionCount}
+                </span>
+              )}
               {loading && <div className="nav-spinner" />}
               {active && (
                 <div style={{
@@ -122,6 +169,7 @@ export default function Sidebar() {
           display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem',
           borderRadius: 10, color: 'var(--text-muted)', fontSize: '0.82rem', background: 'none',
           width: '100%', textAlign: 'left', transition: 'all 0.2s',
+          border: 'none', cursor: 'pointer', fontFamily: 'inherit',
         }}
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--danger)'; e.currentTarget.style.background = 'var(--bg-hover)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'none'; }}

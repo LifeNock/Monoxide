@@ -3,10 +3,16 @@
 import Sidebar from '@/components/Sidebar';
 import FingerprintCollector from '@/components/FingerprintCollector';
 import { usePanicKey, getIsPanicking } from '@/hooks/usePanicKey';
+import { getChatClient } from '@/lib/chat/client';
 import { useEffect } from 'react';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   usePanicKey();
+
+  useEffect(() => {
+    // Initialize socket connection globally so presence tracking works everywhere
+    getChatClient().init();
+  }, []);
 
   useEffect(() => {
     // Track intentional refreshes so we don't prompt for those

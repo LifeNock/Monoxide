@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       loginEmail = profile.email;
     }
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.auth.signInWithPassword({
       email: loginEmail,
       password,
@@ -40,6 +40,22 @@ export async function POST(request: NextRequest) {
           email: loginEmail,
         }, { status: 403 });
       }
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+    }
+
+    // Check for poison ban — silently reject login as if credentials are wrong
+    const { data: poisonBan } = await supabaseAdmin
+      .from('user_bans')
+      .select('id')
+      .eq('user_id', data.user.id)
+      .eq('ban_type', 'poison')
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+
+    if (poisonBan) {
+      // Sign them out so the session doesn't persist, then return generic error
+      await supabase.auth.signOut();
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 

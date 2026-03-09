@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Globe, Gamepad2, MessageCircle, Shield, ArrowRight } from 'lucide-react';
 import ParticleBackground from '@/components/ParticleBackground';
 import FunFact from '@/components/FunFact';
+import { useTheme } from '@/contexts/ThemeContext';
 
 const features = [
   { icon: Globe, title: 'Web Tools', desc: 'Integrated browsing utilities' },
@@ -19,6 +20,9 @@ export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const router = useRouter();
+  const { theme } = useTheme();
+  const isChristmas = theme === 'christmas';
+  const logoSrc = isChristmas ? '/christmasmonoxidelogo.png' : '/monoxidelogo.png';
 
   useEffect(() => {
     setMounted(true);
@@ -29,7 +33,7 @@ export default function LandingPage() {
   }, []);
 
   const handleGetStarted = () => {
-    router.push(isLoggedIn ? '/games' : '/signup');
+    router.push(isLoggedIn ? '/chat' : '/signup');
   };
 
   return (
@@ -58,7 +62,7 @@ export default function LandingPage() {
             background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%)',
             animation: 'float 4s ease-in-out infinite',
           }}>
-            <Image src="/monoxidelogo.png" alt="Monoxide" width={150} height={120} priority className="logo-adaptive" style={{ objectFit: 'contain' }} />
+            <Image src={logoSrc} alt="Monoxide" width={150} height={120} priority className={isChristmas ? '' : 'logo-adaptive'} style={{ objectFit: 'contain' }} />
           </div>
         </div>
 

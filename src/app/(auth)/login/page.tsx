@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { clearSettingsCache } from '@/lib/settingsSync';
+import { useTheme } from '@/contexts/ThemeContext';
 
 function LoginForm() {
   const [email, setEmail] = useState('');
@@ -16,7 +17,9 @@ function LoginForm() {
   const [resendStatus, setResendStatus] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect') || '/proxy';
+  const redirect = searchParams.get('redirect') || '/chat';
+  const { theme } = useTheme();
+  const logoSrc = theme === 'christmas' ? '/christmasmonoxidelogo.png' : '/monoxidelogo.png';
 
   // Cooldown timer
   useEffect(() => {
@@ -76,7 +79,7 @@ function LoginForm() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-          <Image src="/monoxidelogo.png" alt="Monoxide" width={75} height={60} className="logo-adaptive" style={{ objectFit: 'contain' }} />
+          <Image src={logoSrc} alt="Monoxide" width={75} height={60} className={theme === 'christmas' ? '' : 'logo-adaptive'} style={{ objectFit: 'contain' }} />
         </div>
         <h1 className="wordmark" style={{
           fontSize: '1.8rem',

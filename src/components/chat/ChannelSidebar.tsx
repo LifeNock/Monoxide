@@ -18,12 +18,10 @@ interface ChannelSidebarProps {
 export default function ChannelSidebar({ channels, activeId, onSelect }: ChannelSidebarProps) {
   return (
     <div style={{
-      width: 220,
-      background: 'var(--sidebar-bg)',
-      borderRight: '1px solid var(--border)',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
+      flex: 1,
     }}>
       <style>{`
         .channel-btn {
@@ -45,18 +43,6 @@ export default function ChannelSidebar({ channels, activeId, onSelect }: Channel
           transition: height 0.2s ease, opacity 0.2s ease;
         }
       `}</style>
-
-      {/* Header */}
-      <div style={{
-        padding: '0.85rem 1rem',
-        borderBottom: '1px solid var(--border)',
-        flexShrink: 0,
-      }}>
-        <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-          Monoxide{' '}
-          <span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>Chat</span>
-        </span>
-      </div>
 
       {/* Channel list */}
       <div style={{
@@ -90,6 +76,7 @@ export default function ChannelSidebar({ channels, activeId, onSelect }: Channel
                 cursor: 'pointer',
                 border: 'none',
                 position: 'relative',
+                fontFamily: 'inherit',
               }}
             >
               {isActive && (

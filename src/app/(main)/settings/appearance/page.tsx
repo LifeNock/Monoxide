@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useTheme, type Theme } from '@/contexts/ThemeContext';
 import { useFont, type FontOption } from '@/contexts/FontContext';
 
@@ -22,6 +23,19 @@ const fonts: { id: FontOption; name: string }[] = [
 export default function AppearancePage() {
   const { theme, setTheme } = useTheme();
   const { font, setFont } = useFont();
+  const [snowEnabled, setSnowEnabled] = useState(true);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('monoxide-snow');
+    if (saved !== null) setSnowEnabled(saved === 'true');
+  }, []);
+
+  const toggleSnow = () => {
+    const next = !snowEnabled;
+    setSnowEnabled(next);
+    localStorage.setItem('monoxide-snow', String(next));
+    window.dispatchEvent(new Event('snow-toggle'));
+  };
 
   const saveToDb = async (t: Theme, f: FontOption) => {
     await fetch('/api/settings', {
@@ -47,6 +61,32 @@ export default function AppearancePage() {
           </button>
         ))}
       </div>
+
+      {theme === 'christmas' && (
+        <div style={{ marginBottom: '2rem' }}>
+          <button
+            onClick={toggleSnow}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
+              background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12,
+              padding: '0.85rem 1rem', cursor: 'pointer', transition: 'border-color 0.15s',
+            }}
+          >
+            <span style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--text-primary)' }}>Snow Effect</span>
+            <div style={{
+              width: 40, height: 22, borderRadius: 11, transition: 'background 0.2s',
+              background: snowEnabled ? 'var(--accent)' : 'var(--bg-hover)',
+              position: 'relative',
+            }}>
+              <div style={{
+                width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                position: 'absolute', top: 3, transition: 'left 0.2s',
+                left: snowEnabled ? 21 : 3,
+              }} />
+            </div>
+          </button>
+        </div>
+      )}
 
       <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Font</h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

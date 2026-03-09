@@ -9,6 +9,7 @@ export interface ReplyPreview {
 export interface Message {
   id: string;
   channel_id: string;
+  conversation_id?: string;
   user_id: string;
   content: string;
   image_url: string | null;
@@ -38,7 +39,33 @@ class ChatClient {
   init() {
     if (this.socket) return;
     this.socket = io({ path: '/socket.io/', transports: ['websocket', 'polling'] });
+    this.socket.on('connect', () => {
+      this.identify();
+    });
   }
+
+  getSocket(): Socket | null {
+    return this.socket;
+  }
+
+  private async identify() {
+    try {
+      const res = await fetch('/api/auth/me');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data.user) return;
+      const hwid = typeof window !== 'undefined' ? localStorage.getItem('monoxide-hwid') : null;
+      this.socket?.emit('identify', {
+        userId: data.user.id,
+        username: data.user.username,
+        displayName: data.user.display_name,
+        avatarUrl: data.user.avatar_url,
+        hwid,
+      });
+    } catch {}
+  }
+
+  // === Channel methods ===
 
   async getChannels() {
     const res = await fetch('/api/channels');
@@ -63,11 +90,7 @@ class ChatClient {
     }
 
     const msg = await res.json();
-
-    if (this.socket) {
-      this.socket.emit('send-message', msg);
-    }
-
+    if (this.socket) this.socket.emit('send-message', msg);
     return msg;
   }
 
@@ -77,16 +100,11 @@ class ChatClient {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messageId }),
     });
-
     if (!res.ok) return false;
-
     const data = await res.json();
-
-    // Broadcast delete via socket
     if (this.socket && data.ok) {
       this.socket.emit('delete-message', { messageId, channelId });
     }
-
     return data.ok;
   }
 
@@ -98,12 +116,9 @@ class ChatClient {
 
   subscribeToChannel(channelId: string, onMessage: MessageCallback) {
     if (!this.socket) return;
-
     this.socket.emit('join-channel', channelId);
     this.socket.on('new-message', (msg: Message) => {
-      if (msg.channel_id === channelId) {
-        onMessage(msg);
-      }
+      if (msg.channel_id === channelId) onMessage(msg);
     });
   }
 
@@ -113,8 +128,7 @@ class ChatClient {
   }
 
   offMessageDeleted() {
-    if (!this.socket) return;
-    this.socket.off('message-deleted');
+    this.socket?.off('message-deleted');
   }
 
   unsubscribeFromChannel(channelId: string) {
@@ -136,11 +150,7 @@ class ChatClient {
 
   emitTyping(channelId: string, username: string, isTyping: boolean, avatarUrl?: string) {
     if (!this.socket) return;
-    if (isTyping) {
-      this.socket.emit('typing-start', { channelId, username, avatarUrl });
-    } else {
-      this.socket.emit('typing-stop', { channelId, username });
-    }
+    this.socket.emit(isTyping ? 'typing-start' : 'typing-stop', { channelId, username, avatarUrl });
   }
 
   async getReactions(messageId: string): Promise<{ emoji_id: string; count: number; user_reacted: boolean }[]> {
@@ -155,15 +165,9 @@ class ChatClient {
       body: JSON.stringify({ messageId, emoji }),
     });
     const result = await res.json();
-
     if (this.socket) {
-      this.socket.emit(result.action === 'added' ? 'add-reaction' : 'remove-reaction', {
-        channelId,
-        messageId,
-        emoji,
-      });
+      this.socket.emit(result.action === 'added' ? 'add-reaction' : 'remove-reaction', { channelId, messageId, emoji });
     }
-
     return result;
   }
 
@@ -174,9 +178,118 @@ class ChatClient {
   }
 
   offReactionUpdate() {
+    this.socket?.off('reaction-added');
+    this.socket?.off('reaction-removed');
+  }
+
+  // === DM methods ===
+
+  async getConversations() {
+    const res = await fetch('/api/dm/conversations');
+    return res.json();
+  }
+
+  async createConversation(userIds: string[], name?: string) {
+    const res = await fetch('/api/dm/conversations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userIds, name }),
+    });
+    return res.json();
+  }
+
+  async getDmMessages(conversationId: string): Promise<Message[]> {
+    const res = await fetch(`/api/dm/messages?conversationId=${conversationId}`);
+    return res.json();
+  }
+
+  async sendDm(conversationId: string, content: string, replyTo?: string, imageUrl?: string): Promise<Message | null> {
+    const res = await fetch('/api/dm/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversationId, content, replyTo, imageUrl }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to send');
+    }
+    const msg = await res.json();
+    if (this.socket) this.socket.emit('send-dm', msg);
+    return msg;
+  }
+
+  async deleteDm(messageId: string, conversationId: string): Promise<boolean> {
+    const res = await fetch('/api/dm/messages', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageId }),
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (this.socket && data.ok) {
+      this.socket.emit('delete-dm', { messageId, conversationId });
+    }
+    return data.ok;
+  }
+
+  subscribeToDm(conversationId: string, onMessage: MessageCallback) {
     if (!this.socket) return;
-    this.socket.off('reaction-added');
-    this.socket.off('reaction-removed');
+    this.socket.emit('join-dm', conversationId);
+    this.socket.on('new-dm', (msg: Message) => {
+      if (msg.conversation_id === conversationId) onMessage(msg);
+    });
+  }
+
+  unsubscribeFromDm(conversationId: string) {
+    if (!this.socket) return;
+    this.socket.emit('leave-dm', conversationId);
+    this.socket.off('new-dm');
+    this.socket.off('dm-typing-update');
+    this.socket.off('dm-deleted');
+  }
+
+  onDmDeleted(callback: (data: { messageId: string }) => void) {
+    this.socket?.on('dm-deleted', callback);
+  }
+
+  offDmDeleted() {
+    this.socket?.off('dm-deleted');
+  }
+
+  onDmTyping(conversationId: string, callback: TypingCallback) {
+    if (!this.socket) return;
+    this.socket.on('dm-typing-update', (data: { conversationId: string; users: TypingUser[] }) => {
+      if (data.conversationId === conversationId) callback(data.users);
+    });
+  }
+
+  emitDmTyping(conversationId: string, username: string, isTyping: boolean, avatarUrl?: string) {
+    if (!this.socket) return;
+    this.socket.emit(isTyping ? 'dm-typing-start' : 'dm-typing-stop', { conversationId, username, avatarUrl });
+  }
+
+  // === Mentions ===
+
+  onMention(callback: (data: any) => void) {
+    this.socket?.on('mention', callback);
+  }
+
+  offMention() {
+    this.socket?.off('mention');
+  }
+
+  async getMentionCount(): Promise<number> {
+    const res = await fetch('/api/mentions');
+    const data = await res.json();
+    return data.count || 0;
+  }
+
+  async markMentionsRead(opts: { channelId?: string; conversationId?: string }) {
+    await fetch('/api/mentions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(opts),
+    });
   }
 
   disconnect() {

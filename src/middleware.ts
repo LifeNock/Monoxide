@@ -3,14 +3,12 @@ import { createServerClient } from '@supabase/ssr';
 
 const protectedRoutes = ['/chat', '/settings', '/profile', '/games', '/proxy', '/connect'];
 
-export async function middleware(request: NextRequest) {
-  const isProtected = protectedRoutes.some((route) =>
-    request.nextUrl.pathname.startsWith(route)
-  );
+export default async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
 
-  if (!isProtected) {
-    return NextResponse.next();
-  }
+  const isProtected = protectedRoutes.some((route) =>
+    pathname.startsWith(route)
+  );
 
   let response = NextResponse.next({
     request: { headers: request.headers },
@@ -36,15 +34,19 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
+  // If not logged in and trying to access a protected route, redirect to login
   if (!user) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    url.searchParams.set('redirect', request.nextUrl.pathname);
-    return NextResponse.redirect(url);
+    if (isProtected) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      url.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(url);
+    }
+    return response;
   }
 
-  // Check for active bans (using service role via direct Supabase REST)
-  // We can't import supabaseAdmin in middleware (edge runtime), so use REST API
+  // User is logged in — check for active bans on ALL routes
+  // (poison bans need to trigger everywhere including /__p, /__q, landing page, etc.)
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -65,12 +67,24 @@ export async function middleware(request: NextRequest) {
       });
 
       if (activeBan) {
-        const url = request.nextUrl.clone();
-        url.pathname = '/banned';
-        url.searchParams.set('type', activeBan.ban_type);
-        url.searchParams.set('reason', activeBan.reason || '');
-        if (activeBan.expires_at) url.searchParams.set('expires', activeBan.expires_at);
-        return NextResponse.redirect(url);
+        // Poison ban: create an infinite redirect loop so the browser shows
+        // "ERR_TOO_MANY_REDIRECTS" — site appears completely broken, no ban page
+        if (activeBan.ban_type === 'poison') {
+          const url = request.nextUrl.clone();
+          url.pathname = pathname === '/__p' ? '/__q' : '/__p';
+          url.searchParams.set('_', Date.now().toString());
+          return NextResponse.redirect(url);
+        }
+
+        // Don't redirect to /banned if already on /banned (avoid loop)
+        if (pathname !== '/banned') {
+          const url = request.nextUrl.clone();
+          url.pathname = '/banned';
+          url.searchParams.set('type', activeBan.ban_type);
+          url.searchParams.set('reason', activeBan.reason || '');
+          if (activeBan.expires_at) url.searchParams.set('expires', activeBan.expires_at);
+          return NextResponse.redirect(url);
+        }
       }
     }
 
@@ -93,7 +107,7 @@ export async function middleware(request: NextRequest) {
             return true;
           });
 
-          if (activeHwid) {
+          if (activeHwid && pathname !== '/banned') {
             const url = request.nextUrl.clone();
             url.pathname = '/banned';
             url.searchParams.set('type', 'hwid');

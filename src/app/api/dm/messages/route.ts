@@ -1,26 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getAuthUser } from '@/lib/auth';
-import { hasPermission } from '@/lib/permissions';
 
+// GET - Fetch messages for a conversation
 export async function GET(request: NextRequest) {
-  const channelId = request.nextUrl.searchParams.get('channelId');
-  if (!channelId) return NextResponse.json([]);
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+
+  const conversationId = request.nextUrl.searchParams.get('conversationId');
+  if (!conversationId) return NextResponse.json([]);
+
+  // Verify user is a participant
+  const { data: participant } = await supabaseAdmin
+    .from('dm_participants')
+    .select('user_id')
+    .eq('conversation_id', conversationId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (!participant) return NextResponse.json({ error: 'Not a participant' }, { status: 403 });
 
   const { data: messages } = await supabaseAdmin
-    .from('messages')
-    .select(`
-      *,
-      user:profiles!user_id(username, display_name, avatar_url, pronouns)
-    `)
-    .eq('channel_id', channelId)
+    .from('dm_messages')
+    .select('*, user:profiles!user_id(username, display_name, avatar_url, pronouns)')
+    .eq('conversation_id', conversationId)
     .eq('is_deleted', false)
     .order('created_at', { ascending: true })
-    .limit(100);
+    .limit(200);
 
   if (!messages) return NextResponse.json([]);
 
-  // Get top role for each unique user
+  // Get roles for users
   const userIds = Array.from(new Set(messages.map((m: any) => m.user_id).filter(Boolean)));
   const roleMap: Record<string, { name: string; color: string }> = {};
 
@@ -32,32 +42,34 @@ export async function GET(request: NextRequest) {
       .order('role(priority)', { ascending: false })
       .limit(1)
       .single();
-
-    if (userRole?.role) {
-      roleMap[uid as string] = userRole.role as any;
-    }
+    if (userRole?.role) roleMap[uid as string] = userRole.role as any;
   }
 
-  // Build a map of reply_to message IDs -> their content/author for reply previews
+  // Reply previews
   const replyIds = messages.map((m: any) => m.reply_to).filter(Boolean);
-  const replyMap: Record<string, { content: string; display_name: string; username: string }> = {};
-
+  const replyMap: Record<string, any> = {};
   if (replyIds.length > 0) {
-    const { data: replyMessages } = await supabaseAdmin
-      .from('messages')
+    const { data: replyMsgs } = await supabaseAdmin
+      .from('dm_messages')
       .select('id, content, user:profiles!user_id(username, display_name)')
       .in('id', replyIds);
-
-    if (replyMessages) {
-      for (const rm of replyMessages) {
+    if (replyMsgs) {
+      for (const rm of replyMsgs) {
         replyMap[rm.id] = {
           content: (rm as any).content || '',
-          display_name: (rm as any).user?.display_name || (rm as any).user?.username || 'Unknown',
+          display_name: (rm as any).user?.display_name || 'Unknown',
           username: (rm as any).user?.username || '',
         };
       }
     }
   }
+
+  // Update last_read_at
+  await supabaseAdmin
+    .from('dm_participants')
+    .update({ last_read_at: new Date().toISOString() })
+    .eq('conversation_id', conversationId)
+    .eq('user_id', user.id);
 
   const flat = messages.map((m: any) => ({
     ...m,
@@ -74,12 +86,13 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(flat);
 }
 
+// POST - Send a message
 export async function POST(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
-  const { channelId, content, replyTo, imageUrl } = await request.json();
-  if (!channelId || (!content?.trim() && !imageUrl)) {
+  const { conversationId, content, replyTo, imageUrl } = await request.json();
+  if (!conversationId || (!content?.trim() && !imageUrl)) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
 
@@ -87,7 +100,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Message too long' }, { status: 400 });
   }
 
-  // Check word filter
+  // Verify participant
+  const { data: participant } = await supabaseAdmin
+    .from('dm_participants')
+    .select('user_id')
+    .eq('conversation_id', conversationId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (!participant) return NextResponse.json({ error: 'Not a participant' }, { status: 403 });
+
+  // Word filter
   const { data: filterWords } = await supabaseAdmin.from('word_filter').select('word');
   if (filterWords && content) {
     const lower = content.toLowerCase();
@@ -99,9 +122,9 @@ export async function POST(request: NextRequest) {
   }
 
   const { data: message, error } = await supabaseAdmin
-    .from('messages')
+    .from('dm_messages')
     .insert({
-      channel_id: channelId,
+      conversation_id: conversationId,
       user_id: user.id,
       content: (content || '').trim(),
       image_url: imageUrl || null,
@@ -110,11 +133,9 @@ export async function POST(request: NextRequest) {
     .select()
     .single();
 
-  if (error) {
-    return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
-  }
+  if (error) return NextResponse.json({ error: 'Failed to send' }, { status: 500 });
 
-  // Get user profile and role for the response
+  // Get profile and role
   const { data: profile } = await supabaseAdmin
     .from('profiles')
     .select('username, display_name, avatar_url, pronouns')
@@ -129,89 +150,47 @@ export async function POST(request: NextRequest) {
     .limit(1)
     .single();
 
-  // If this is a reply, include the replied-to message data
   let reply_to_message = null;
   if (replyTo) {
     const { data: replyMsg } = await supabaseAdmin
-      .from('messages')
+      .from('dm_messages')
       .select('id, content, user:profiles!user_id(username, display_name)')
       .eq('id', replyTo)
       .single();
-
     if (replyMsg) {
       reply_to_message = {
         content: (replyMsg as any).content || '',
-        display_name: (replyMsg as any).user?.display_name || (replyMsg as any).user?.username || 'Unknown',
+        display_name: (replyMsg as any).user?.display_name || 'Unknown',
         username: (replyMsg as any).user?.username || '',
       };
     }
   }
 
-  // Parse mentions
+  // Parse mentions from content
   if (content) {
     const mentionRegex = /@(\w+)/g;
     let match;
     const mentionedUsernames = new Set<string>();
-    let hasEveryone = false;
-
     while ((match = mentionRegex.exec(content)) !== null) {
-      if (match[1].toLowerCase() === 'everyone') {
-        hasEveryone = true;
-      } else {
-        mentionedUsernames.add(match[1].toLowerCase());
-      }
-    }
-
-    // Check if user has @everyone permission
-    if (hasEveryone) {
-      const { data: userPerms } = await supabaseAdmin
-        .from('user_roles')
-        .select('role:roles(permissions)')
-        .eq('user_id', user.id);
-
-      let canEveryone = ['lifenock'].includes(user.username.toLowerCase());
-      if (!canEveryone && userPerms) {
-        for (const ur of userPerms) {
-          const perms = (ur.role as any)?.permissions;
-          if (perms?.mention_everyone) { canEveryone = true; break; }
-        }
-      }
-
-      if (canEveryone) {
-        // Get all users except sender
-        const { data: allProfiles } = await supabaseAdmin
-          .from('profiles')
-          .select('id')
-          .neq('id', user.id);
-
-        if (allProfiles) {
-          const everyoneMentions = allProfiles.map(p => ({
-            user_id: p.id,
-            message_id: message.id,
-            channel_id: channelId,
-            is_everyone: true,
-          }));
-          if (everyoneMentions.length > 0) {
-            await supabaseAdmin.from('mentions').insert(everyoneMentions);
-          }
-        }
-      }
+      mentionedUsernames.add(match[1].toLowerCase());
     }
 
     if (mentionedUsernames.size > 0) {
-      const { data: mentionedProfiles } = await supabaseAdmin
-        .from('profiles')
-        .select('id, username')
-        .in('username', Array.from(mentionedUsernames));
+      // Get participant user IDs for mentioned users
+      const { data: participants } = await supabaseAdmin
+        .from('dm_participants')
+        .select('user_id, user:profiles!user_id(username)')
+        .eq('conversation_id', conversationId);
 
-      if (mentionedProfiles) {
-        const mentionInserts = mentionedProfiles
-          .filter(p => p.id !== user.id)
+      if (participants) {
+        const mentionInserts = participants
+          .filter(p => p.user_id !== user.id && mentionedUsernames.has((p.user as any)?.username?.toLowerCase()))
           .map(p => ({
-            user_id: p.id,
-            message_id: message.id,
-            channel_id: channelId,
+            user_id: p.user_id,
+            dm_message_id: message.id,
+            conversation_id: conversationId,
           }));
+
         if (mentionInserts.length > 0) {
           await supabaseAdmin.from('mentions').insert(mentionInserts);
         }
@@ -231,6 +210,7 @@ export async function POST(request: NextRequest) {
   });
 }
 
+// DELETE - Delete a message
 export async function DELETE(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -238,26 +218,21 @@ export async function DELETE(request: NextRequest) {
   const { messageId } = await request.json();
   if (!messageId) return NextResponse.json({ error: 'Missing messageId' }, { status: 400 });
 
-  // Fetch the message to check ownership
   const { data: message } = await supabaseAdmin
-    .from('messages')
-    .select('id, user_id, channel_id')
+    .from('dm_messages')
+    .select('id, user_id, conversation_id')
     .eq('id', messageId)
     .single();
 
-  if (!message) return NextResponse.json({ error: 'Message not found' }, { status: 404 });
-
-  const isOwner = message.user_id === user.id;
-  const canDelete = isOwner || await hasPermission(user.id, 'delete_messages');
-
-  if (!canDelete) {
-    return NextResponse.json({ error: 'No permission to delete this message' }, { status: 403 });
+  if (!message) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (message.user_id !== user.id) {
+    return NextResponse.json({ error: 'Can only delete your own messages' }, { status: 403 });
   }
 
   await supabaseAdmin
-    .from('messages')
+    .from('dm_messages')
     .update({ is_deleted: true })
     .eq('id', messageId);
 
-  return NextResponse.json({ ok: true, messageId, channelId: message.channel_id });
+  return NextResponse.json({ ok: true, messageId, conversationId: message.conversation_id });
 }

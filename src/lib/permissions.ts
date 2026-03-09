@@ -8,7 +8,8 @@ export type Permission =
   | 'ban_users'
   | 'kick_users'
   | 'manage_word_filter'
-  | 'manage_badges';
+  | 'manage_badges'
+  | 'mention_everyone';
 
 const ADMIN_USERNAMES = ['lifenock'];
 
@@ -26,7 +27,7 @@ export async function getUserPermissions(userId: string): Promise<Set<Permission
     return new Set<Permission>([
       'send_messages', 'delete_messages', 'manage_channels',
       'manage_roles', 'ban_users', 'kick_users',
-      'manage_word_filter', 'manage_badges',
+      'manage_word_filter', 'manage_badges', 'mention_everyone',
     ]);
   }
 

@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getAuthUser } from '@/lib/auth';
-
-const ADMIN_USERNAMES = ['lifenock'];
-
-function isAdmin(username: string): boolean {
-  return ADMIN_USERNAMES.includes(username.toLowerCase());
-}
+import { hasPermission } from '@/lib/permissions';
 
 export async function GET() {
   const { data: roles } = await supabaseAdmin
@@ -20,7 +15,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!isAdmin(user.username)) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  const canManage = await hasPermission(user.id, 'manage_roles');
+  if (!canManage) return NextResponse.json({ error: 'No permission' }, { status: 403 });
 
   const body = await request.json();
 
@@ -42,7 +38,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!isAdmin(user.username)) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  const canManage = await hasPermission(user.id, 'manage_roles');
+  if (!canManage) return NextResponse.json({ error: 'No permission' }, { status: 403 });
 
   const body = await request.json();
 
@@ -62,7 +59,8 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-  if (!isAdmin(user.username)) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  const canManage = await hasPermission(user.id, 'manage_roles');
+  if (!canManage) return NextResponse.json({ error: 'No permission' }, { status: 403 });
 
   const { id } = await request.json();
 

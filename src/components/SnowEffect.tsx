@@ -9,8 +9,6 @@ interface Snowflake {
   vy: number;
   radius: number;
   opacity: number;
-  settled: boolean;
-  settledTimer: number;
   wobblePhase: number;
   wobbleSpeed: number;
 }
@@ -22,8 +20,7 @@ interface CollisionRect {
   bottom: number;
 }
 
-const MAX_FLAKES = 100;
-const SETTLED_LIFETIME = 3000;
+const MAX_FLAKES = 80;
 const COLLISION_SCAN_INTERVAL = 2000;
 
 export default function SnowEffect() {
@@ -35,19 +32,12 @@ export default function SnowEffect() {
 
   const scanCollisionRects = useCallback(() => {
     const rects: CollisionRect[] = [];
-    // Query interactive/visible elements for collision
     const selectors = 'button, a, input, textarea, select, [role="button"], .card, h1, h2, h3, img, nav, aside, header';
     const elements = document.querySelectorAll(selectors);
     elements.forEach((el) => {
       const r = el.getBoundingClientRect();
-      // Skip tiny or invisible elements
       if (r.width < 10 || r.height < 10 || r.bottom < 0 || r.top > window.innerHeight) return;
-      rects.push({
-        left: r.left,
-        top: r.top,
-        right: r.right,
-        bottom: r.bottom,
-      });
+      rects.push({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
     });
     rectsRef.current = rects;
   }, []);
@@ -71,19 +61,19 @@ export default function SnowEffect() {
     };
     window.addEventListener('resize', handleResize);
 
-    // Initialize snowflakes
+    // Spread initial flakes across the full screen height so there's no empty gap
     const flakes = flakesRef.current;
-    for (let i = flakes.length; i < MAX_FLAKES; i++) {
+    flakes.length = 0;
+    for (let i = 0; i < MAX_FLAKES; i++) {
       flakes.push(createFlake(w, h, true));
     }
 
     let lastTime = performance.now();
 
     const loop = (now: number) => {
-      const dt = Math.min((now - lastTime) / 1000, 0.05); // cap dt
+      const dt = Math.min((now - lastTime) / 1000, 0.05);
       lastTime = now;
 
-      // Periodically rescan DOM rects
       if (now - lastScanRef.current > COLLISION_SCAN_INTERVAL) {
         scanCollisionRects();
         lastScanRef.current = now;
@@ -92,87 +82,61 @@ export default function SnowEffect() {
       ctx.clearRect(0, 0, w, h);
       const rects = rectsRef.current;
 
-      for (let i = flakes.length - 1; i >= 0; i--) {
+      for (let i = 0; i < flakes.length; i++) {
         const f = flakes[i];
 
-        if (f.settled) {
-          f.settledTimer += dt * 1000;
-          // Fade out settled snow
-          const fadeProgress = f.settledTimer / SETTLED_LIFETIME;
-          if (fadeProgress >= 1) {
-            flakes[i] = createFlake(w, h, false);
-            continue;
-          }
-          const alpha = f.opacity * (1 - fadeProgress);
-          ctx.beginPath();
-          ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-          ctx.fill();
-          continue;
-        }
-
-        // Physics: gravity + wind wobble
-        f.vy += 20 * dt; // gravity
-        f.vy = Math.min(f.vy, 80 + f.radius * 15); // terminal velocity
+        // Physics
+        f.vy += 15 * dt;
+        f.vy = Math.min(f.vy, 60 + f.radius * 10);
         f.wobblePhase += f.wobbleSpeed * dt;
-        f.vx = Math.sin(f.wobblePhase) * (12 + f.radius * 3);
+        f.vx = Math.sin(f.wobblePhase) * (10 + f.radius * 2);
 
         const newX = f.x + f.vx * dt;
         const newY = f.y + f.vy * dt;
 
-        // Check collision with DOM elements — land on top surfaces
+        // Check collision with DOM elements
         let collided = false;
         for (let j = 0; j < rects.length; j++) {
           const r = rects[j];
-          // Check if flake is approaching the top edge of an element
           if (
             newX + f.radius > r.left &&
             newX - f.radius < r.right &&
-            f.y + f.radius <= r.top + 2 && // was above or at the top
-            newY + f.radius >= r.top - 1 // now at or past the top
+            f.y + f.radius <= r.top + 2 &&
+            newY + f.radius >= r.top - 1
           ) {
-            f.y = r.top - f.radius;
-            f.x = newX;
-            f.settled = true;
-            f.settledTimer = 0;
-            f.vy = 0;
-            f.vx = 0;
             collided = true;
             break;
           }
         }
 
-        if (!collided) {
-          f.x = newX;
-          f.y = newY;
-
-          // Floor collision
-          if (f.y + f.radius >= h) {
-            f.y = h - f.radius;
-            f.settled = true;
-            f.settledTimer = 0;
-            f.vy = 0;
-            f.vx = 0;
-          }
-
-          // Wrap horizontally
-          if (f.x < -10) f.x = w + 10;
-          if (f.x > w + 10) f.x = -10;
-
-          // Off top (shouldn't happen but safety)
-          if (f.y < -50) {
-            flakes[i] = createFlake(w, h, false);
-            continue;
-          }
+        // Off screen or collided — instantly respawn at top
+        if (collided || newY > h + 5) {
+          flakes[i] = createFlake(w, h, false);
+          const nf = flakes[i];
+          ctx.globalAlpha = nf.opacity;
+          ctx.beginPath();
+          ctx.arc(nf.x, nf.y, nf.radius, 0, Math.PI * 2);
+          ctx.fillStyle = 'white';
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          continue;
         }
 
+        f.x = newX;
+        f.y = newY;
+
+        // Wrap horizontally
+        if (f.x < -10) f.x = w + 10;
+        if (f.x > w + 10) f.x = -10;
+
         // Draw
-        const alpha = f.settled ? f.opacity * (1 - f.settledTimer / SETTLED_LIFETIME) : f.opacity;
+        ctx.globalAlpha = f.opacity;
         ctx.beginPath();
         ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.fillStyle = 'white';
         ctx.fill();
       }
+      ctx.globalAlpha = 1;
 
       animRef.current = requestAnimationFrame(loop);
     };
@@ -205,13 +169,12 @@ function createFlake(w: number, h: number, scatter: boolean): Snowflake {
   const radius = 0.5 + Math.random() * 1.5;
   return {
     x: Math.random() * w,
-    y: scatter ? -(Math.random() * h) : -(Math.random() * 20 + 5),
+    // scatter: spread across full viewport; respawn: just above top edge
+    y: scatter ? Math.random() * h : -(Math.random() * 30 + 5),
     vx: 0,
-    vy: 15 + Math.random() * 30,
+    vy: 20 + Math.random() * 25,
     radius,
-    opacity: 0.15 + Math.random() * 0.25,
-    settled: false,
-    settledTimer: 0,
+    opacity: 0.12 + Math.random() * 0.22,
     wobblePhase: Math.random() * Math.PI * 2,
     wobbleSpeed: 1.5 + Math.random() * 2,
   };

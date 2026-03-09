@@ -18,6 +18,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid username' }, { status: 400 });
     }
 
+    // Check email domain blacklist
+    const emailDomain = email.split('@')[1]?.toLowerCase();
+    if (emailDomain) {
+      const { data: blocked } = await supabaseAdmin
+        .from('email_blacklist')
+        .select('id')
+        .eq('domain', emailDomain)
+        .limit(1)
+        .maybeSingle();
+
+      if (blocked) {
+        return NextResponse.json({ error: 'This email domain is not allowed for registration' }, { status: 403 });
+      }
+    }
+
     // Check username uniqueness
     const { data: existing } = await supabaseAdmin
       .from('profiles')
@@ -30,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Sign up with Supabase Auth
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
