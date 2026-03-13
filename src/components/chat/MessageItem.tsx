@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Trash2, Reply, SmilePlus, CornerDownRight } from 'lucide-react';
 import type { Message } from '@/lib/chat/client';
@@ -95,7 +95,7 @@ export default function MessageItem({
 
   const renderInlineFormatting = (text: string) => {
     const regex = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*|~~(.+?)~~|`([^`]+?)`)/g;
-    const elements: (string | JSX.Element)[] = [];
+    const elements: (string | React.ReactElement)[] = [];
     let lastIndex = 0;
     let match;
 

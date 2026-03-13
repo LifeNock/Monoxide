@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
-import { Globe, Gamepad2, MessageCircle, Monitor, Settings, User, LogOut } from 'lucide-react';
+import { Globe, Gamepad2, MessageCircle, Monitor, Settings, User, LogOut, Tv2 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getChatClient } from '@/lib/chat/client';
 
 const navItems = [
   { href: '/proxy', label: 'Proxy', icon: Globe },
   { href: '/games', label: 'Games', icon: Gamepad2 },
+  { href: '/media', label: 'Media', icon: Tv2 },
   { href: '/chat', label: 'Chat', icon: MessageCircle },
   { href: '/connect', label: 'Connect', icon: Monitor },
   { href: '/settings', label: 'Settings', icon: Settings },

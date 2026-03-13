@@ -183,13 +183,7 @@ export default function ChatPage() {
     chatClient.onDmDeleted((data) => {
       setDmMessages(prev => prev.filter(m => m.id !== data.messageId));
     });
-
-    const socket = chatClient.getSocket();
-    if (socket) {
-      socket.on('dm-typing-update', (data: { conversationId: string; users: TypingUser[] }) => {
-        if (data.conversationId === conv.id) setDmTypingUsers(data.users);
-      });
-    }
+    chatClient.onDmTyping(conv.id, setDmTypingUsers);
 
     // Mark DM mentions as read
     chatClient.markMentionsRead({ conversationId: conv.id });

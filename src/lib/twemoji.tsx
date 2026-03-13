@@ -27,7 +27,7 @@ export function TwemojiText({ text, size = 18 }: { text: string; size?: number }
   if (!text) return null;
 
   const regex = emojiRegex();
-  const parts: (string | JSX.Element)[] = [];
+  const parts: (string | React.ReactElement)[] = [];
   let lastIndex = 0;
   let match;
 

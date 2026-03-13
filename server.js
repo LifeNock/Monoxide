@@ -69,6 +69,14 @@ async function getMachineUrl(machineId) {
 app.prepare().then(() => {
   const expressApp = express();
 
+  // Force HTTPS when behind a reverse proxy (e.g. Cloudflare, Railway, etc.)
+  expressApp.use((req, res, next) => {
+    if (req.headers['x-forwarded-proto'] && req.headers['x-forwarded-proto'] !== 'https') {
+      return res.redirect(301, `https://${req.headers.host}${req.url}`);
+    }
+    next();
+  });
+
   // Serve custom UV config from public/uv/ first (overrides dist defaults)
   expressApp.use('/uv/', express.static(path.join(__dirname, 'public', 'uv')));
   // Then serve UV dist files
@@ -181,10 +189,20 @@ app.prepare().then(() => {
   });
 
   const server = http.createServer((req, res) => {
-    // COOP/COEP required for SharedWorker (bare-mux v2)
-    // Using 'credentialless' for COEP so external resources (images, CDN, Supabase) still load
-    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-    res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
+    const url = parse(req.url, true).pathname || '';
+
+    // COOP/COEP only required for proxy routes that use SharedWorker (bare-mux v2)
+    // Applying globally breaks cross-origin iframes (e.g. media embeds) in Firefox
+    const needsCoep = url.startsWith('/uv/') ||
+                      url.startsWith('/epoxy/') ||
+                      url.startsWith('/baremux/') ||
+                      url.startsWith('/scram/') ||
+                      url.startsWith('/proxy');
+
+    if (needsCoep) {
+      res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+      res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
+    }
 
     expressApp(req, res);
   });

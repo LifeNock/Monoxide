@@ -36,11 +36,25 @@ type TypingCallback = (users: TypingUser[]) => void;
 class ChatClient {
   private socket: Socket | null = null;
 
+  // Track active subscriptions so we can re-join on reconnect
+  private activeChannelId: string | null = null;
+  private activeConvId: string | null = null;
+  private channelMessageCb: MessageCallback | null = null;
+  private dmMessageCb: MessageCallback | null = null;
+
   init() {
     if (this.socket) return;
     this.socket = io({ path: '/socket.io/', transports: ['websocket', 'polling'] });
+
     this.socket.on('connect', () => {
       this.identify();
+      // Re-join active rooms on reconnect
+      if (this.activeChannelId) {
+        this.socket!.emit('join-channel', this.activeChannelId);
+      }
+      if (this.activeConvId) {
+        this.socket!.emit('join-dm', this.activeConvId);
+      }
     });
   }
 
@@ -116,7 +130,16 @@ class ChatClient {
 
   subscribeToChannel(channelId: string, onMessage: MessageCallback) {
     if (!this.socket) return;
+
+    // Track active subscription
+    this.activeChannelId = channelId;
+    this.channelMessageCb = onMessage;
+
+    // Join room
     this.socket.emit('join-channel', channelId);
+
+    // Remove old listener before adding new one to prevent duplicates
+    this.socket.off('new-message');
     this.socket.on('new-message', (msg: Message) => {
       if (msg.channel_id === channelId) onMessage(msg);
     });
@@ -124,6 +147,7 @@ class ChatClient {
 
   onMessageDeleted(callback: (data: { messageId: string }) => void) {
     if (!this.socket) return;
+    this.socket.off('message-deleted');
     this.socket.on('message-deleted', callback);
   }
 
@@ -139,10 +163,13 @@ class ChatClient {
     this.socket.off('reaction-added');
     this.socket.off('reaction-removed');
     this.socket.off('message-deleted');
+    this.activeChannelId = null;
+    this.channelMessageCb = null;
   }
 
   onTyping(channelId: string, callback: TypingCallback) {
     if (!this.socket) return;
+    this.socket.off('typing-update');
     this.socket.on('typing-update', (data: { channelId: string; users: TypingUser[] }) => {
       if (data.channelId === channelId) callback(data.users);
     });
@@ -173,6 +200,8 @@ class ChatClient {
 
   onReactionUpdate(callback: (data: { messageId: string; emoji: string }) => void) {
     if (!this.socket) return;
+    this.socket.off('reaction-added');
+    this.socket.off('reaction-removed');
     this.socket.on('reaction-added', callback);
     this.socket.on('reaction-removed', callback);
   }
@@ -234,7 +263,16 @@ class ChatClient {
 
   subscribeToDm(conversationId: string, onMessage: MessageCallback) {
     if (!this.socket) return;
+
+    // Track active subscription
+    this.activeConvId = conversationId;
+    this.dmMessageCb = onMessage;
+
+    // Join room
     this.socket.emit('join-dm', conversationId);
+
+    // Remove old listener before adding new one
+    this.socket.off('new-dm');
     this.socket.on('new-dm', (msg: Message) => {
       if (msg.conversation_id === conversationId) onMessage(msg);
     });
@@ -246,9 +284,12 @@ class ChatClient {
     this.socket.off('new-dm');
     this.socket.off('dm-typing-update');
     this.socket.off('dm-deleted');
+    this.activeConvId = null;
+    this.dmMessageCb = null;
   }
 
   onDmDeleted(callback: (data: { messageId: string }) => void) {
+    this.socket?.off('dm-deleted');
     this.socket?.on('dm-deleted', callback);
   }
 
@@ -258,6 +299,7 @@ class ChatClient {
 
   onDmTyping(conversationId: string, callback: TypingCallback) {
     if (!this.socket) return;
+    this.socket.off('dm-typing-update');
     this.socket.on('dm-typing-update', (data: { conversationId: string; users: TypingUser[] }) => {
       if (data.conversationId === conversationId) callback(data.users);
     });
@@ -271,6 +313,7 @@ class ChatClient {
   // === Mentions ===
 
   onMention(callback: (data: any) => void) {
+    this.socket?.off('mention');
     this.socket?.on('mention', callback);
   }
 
@@ -297,6 +340,10 @@ class ChatClient {
       this.socket.disconnect();
       this.socket = null;
     }
+    this.activeChannelId = null;
+    this.activeConvId = null;
+    this.channelMessageCb = null;
+    this.dmMessageCb = null;
   }
 }
 
